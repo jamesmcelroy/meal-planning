@@ -295,6 +295,151 @@
     {
       "file": "meatloaf.html",
       "status": "unproven"
+    },
+    {
+      "file": "bruschetta-chicken.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "easy-pesto-chicken-and-vegetables.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "creamy-tomato-chicken.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "beef-and-cabbage-stir-fry.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "curried-ground-beef-with-peas-and-potatoes.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "garlic-noodles-with-beef-and-broccoli.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "pasta"
+      ]
+    },
+    {
+      "file": "glazed-pork-chops.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "apple-spice-pork-chops.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "dan-dan-noodles.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "pasta"
+      ]
+    },
+    {
+      "file": "sheet-pan-garlic-butter-shrimp.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "sweet-and-sour-shrimp-with-broccoli.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "one-pan-salmon-dinner.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "vegetable-fried-rice.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "white-beans-with-mushrooms-and-marinara.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "creamy-white-bean-and-spinach-quesadillas.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     }
   ]
 }

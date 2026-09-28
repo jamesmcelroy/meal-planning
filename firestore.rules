@@ -28,6 +28,11 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    match /menu/{dateKey} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['recipeId', 'setBy', 'setAt']);
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;

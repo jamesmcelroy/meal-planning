@@ -1,0 +1,16 @@
+{
+  "name": "Family Dinners",
+  "short_name": "Dinners",
+  "description": "Rate recipes and vote on next week's dinners.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf8f4",
+  "theme_color": "#2c2416",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

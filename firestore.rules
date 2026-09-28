@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Security rules for the Family Dinners app's Firestore database.
+//
+// This app has no login system (by design — it's a private family app with
+// a simple name picker, not real authentication). That means these rules
+// can't verify WHO is writing, only WHAT is being written. The tradeoff:
+// anyone who has your app's URL and Firebase config values (which are
+// public in the deployed site, by necessity) could technically write to
+// this database. That's an acceptable risk for a private family recipe app
+// with no sensitive data — but it does mean don't reuse this project or
+// these config values for anything containing real personal/financial data.
+//
+// These rules restrict writes to the two collections/shape the app
+// actually uses, so at least a stranger can't repurpose your database for
+// unrelated storage or spam it with arbitrary data.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /ratings/{recipeId} {
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['people']);
+    }
+
+    match /votes/{weekKey} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

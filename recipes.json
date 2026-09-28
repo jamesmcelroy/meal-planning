@@ -1,0 +1,12 @@
+{
+  "recipes": [
+    { "file": "sheet-pan-sausage-roasted-veggies.html", "status": "active" },
+    { "file": "shrimp-stir-fry.html", "status": "active" },
+    { "file": "chicken-tacos.html", "status": "active" },
+    { "file": "pasta-garlic-oil-parmesan.html", "status": "active" },
+    { "file": "ny-strip-steak.html", "status": "active" },
+    { "file": "soy-ginger-glazed-salmon.html", "status": "active" },
+    { "file": "chicken-stir-fry-hoisin.html", "status": "active" },
+    { "file": "burgers-bagged-salad.html", "status": "retired" }
+  ]
+}

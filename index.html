@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Family Dinners</title>
+<meta name="description" content="Rate recipes and vote on next week's dinners.">
+
+<!-- iOS Home Screen / PWA support -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dinners">
+<meta name="theme-color" content="#2c2416">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:#faf8f4;color:#2c2416;font-family:'Source Serif 4',Georgia,serif;font-weight:300;
+    min-height:100vh; padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3{font-family:'Playfair Display',serif}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  input,textarea{font-family:inherit}
+
+  /* ---------- App shell ---------- */
+  #app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  header.top{
+    padding:calc(env(safe-area-inset-top) + 16px) 20px 14px;
+    background:#2c2416;color:#faf8f4;
+    display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;z-index:10;
+  }
+  header.top h1{font-size:20px;font-weight:600;color:#faf8f4}
+  header.top .who{font-size:13px;color:#e8c96b;display:flex;align-items:center;gap:8px}
+  header.top .who button{color:#c9bfa8;font-size:12px;text-decoration:underline;text-underline-offset:2px}
+  main{flex:1;padding:20px 20px 100px}
+
+  nav.tabs{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#fff;border-top:1px solid #e5ddc9;
+    display:flex;max-width:640px;margin:0 auto;
+    padding-bottom:env(safe-area-inset-bottom);
+    z-index:10;
+  }
+  nav.tabs button{
+    flex:1;padding:12px 4px 10px;font-size:11px;letter-spacing:.04em;color:#9c8c6c;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+  }
+  nav.tabs button .ic{font-size:20px;line-height:1}
+  nav.tabs button.active{color:#2c2416;font-weight:600}
+
+  /* ---------- Name picker (onboarding) ---------- */
+  #namePicker{
+    position:fixed;inset:0;background:#faf8f4;z-index:100;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  }
+  #namePicker h2{font-size:28px;margin-bottom:8px;text-align:center}
+  #namePicker p{color:#5c5040;margin-bottom:32px;text-align:center;font-style:italic}
+  .name-list{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
+  .name-btn{
+    padding:18px;border-radius:12px;background:#fff;border:1px solid #e5ddc9;
+    font-size:18px;font-family:'Playfair Display',serif;font-weight:600;color:#2c2416;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .name-btn:active{background:#f5f0e4}
+
+  /* ---------- Cards ---------- */
+  .card{
+    background:#fff;border:1px solid #e5ddc9;border-radius:14px;padding:18px;margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.03);
+  }
+  .card h3{font-size:19px;color:#1a1408;margin-bottom:4px}
+  .card .desc{font-size:14px;color:#5c5040;font-style:italic;margin-bottom:10px;line-height:1.5}
+  .card .meta-row{display:flex;gap:14px;font-size:11px;color:#9c8c6c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px}
+  .stars{display:flex;gap:4px;margin-bottom:8px}
+  .stars button{font-size:24px;color:#e0d8c8;line-height:1}
+  .stars button.filled{color:#e8c96b}
+  .avg-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#5c5040;margin-bottom:10px}
+  .avg-row .n{color:#9c8c6c}
+  .per-person{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .chip{font-size:11px;background:#f5f0e4;border-radius:20px;padding:4px 10px;color:#5c5040}
+  .chip strong{color:#2c2416}
+  textarea.comment{
+    width:100%;border:1px solid #e5ddc9;border-radius:8px;padding:10px;font-size:14px;
+    min-height:56px;resize:vertical;background:#faf8f4;color:#2c2416;
+  }
+  .comment-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .comment-item{font-size:13px;color:#5c5040;background:#faf8f4;border-radius:8px;padding:8px 10px}
+  .comment-item b{color:#2c2416}
+  .save-hint{font-size:11px;color:#9c8c6c;margin-top:6px;height:14px}
+
+  /* ---------- Vote view ---------- */
+  .vote-card{display:flex;align-items:center;gap:14px}
+  .vote-card .info{flex:1}
+  .vote-count{
+    display:flex;flex-direction:column;align-items:center;gap:4px;min-width:56px;
+  }
+  .vote-count .num{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#2c2416}
+  .vote-btn{
+    width:44px;height:44px;border-radius:50%;background:#f5f0e4;border:1px solid #e5ddc9;font-size:20px;color:#2c2416;
+  }
+  .vote-btn.voted{background:#2c2416;color:#e8c96b;border-color:#2c2416}
+  .section-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9c8c6c;margin:22px 0 10px}
+  .section-label:first-child{margin-top:0}
+  .empty{color:#9c8c6c;font-style:italic;text-align:center;padding:40px 20px;font-size:14px}
+  .banner-info{background:#f5f0e4;border-left:3px solid #e8c96b;border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;color:#5c5040;margin-bottom:18px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="namePicker">
+  <h2>Who's rating tonight?</h2>
+  <p>Pick your name to get started</p>
+  <div class="name-list" id="nameList"></div>
+</div>
+
+<div id="app" style="display:none">
+  <header class="top">
+    <h1>Family Dinners</h1>
+    <div class="who">
+      <span id="whoLabel"></span>
+      <button id="switchUser">switch</button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <nav class="tabs">
+    <button data-view="vote" class="active"><span class="ic">🗳️</span>Vote</button>
+    <button data-view="recipes"><span class="ic">📖</span>Recipes</button>
+    <button data-view="new"><span class="ic">✨</span>New</button>
+  </nav>
+</div>
+
+<script type="module">
+const FAMILY_MEMBERS = ["James", "Roisin", "Colbie", "Bryce", "Gage"];
+
+// Firebase is loaded dynamically and lazily so that a network hiccup or a
+// blocked CDN doesn't take down the whole app — the name picker, recipe
+// browsing, and navigation all work even if Firebase never connects. Only
+// live sync of ratings/votes depends on it.
+let db = null;
+let fb = null; // holds { doc, setDoc, onSnapshot, collection }
+let firebaseStatus = "connecting"; // "connecting" | "connected" | "unavailable"
+
+async function initFirebase() {
+  try {
+    const [{ initializeApp }, firestoreMod, { firebaseConfig }] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js"),
+      import("./firebase-config.js")
+    ]);
+    if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+      console.warn("firebase-config.js still has placeholder values — see SETUP.md");
+      firebaseStatus = "unavailable";
+      render();
+      return;
+    }
+    const fbApp = initializeApp(firebaseConfig);
+    db = firestoreMod.getFirestore(fbApp);
+    fb = firestoreMod;
+    firebaseStatus = "connected";
+    listenToRatings();
+    listenToVotes();
+    render();
+  } catch (e) {
+    console.error("Firebase failed to load — app will run in read-only/offline mode.", e);
+    firebaseStatus = "unavailable";
+    render();
+  }
+}
+
+// ---------- State ----------
+let currentUser = localStorage.getItem("familyDinners.user") || null;
+let recipesIndex = [];       // from recipes.json
+let recipeDetails = {};      // file -> parsed recipe object
+let ratings = {};            // recipeId -> { personName: {stars, comment} }
+let votes = {};              // weekKey -> { recipeId: [personNames] }
+let activeView = "vote";
+
+const CURRENT_WEEK = getWeekKey();
+
+function getWeekKey(d = new Date()) {
+  // ISO-ish week key: YYYY-Www, using US Eastern-style Monday start.
+  const date = new Date(d);
+  date.setHours(0,0,0,0);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() + 1 - day);
+  const yearStart = new Date(date.getFullYear(),0,1);
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getFullYear()}-W${String(weekNo).padStart(2,"0")}`;
+}
+
+function recipeIdFromFile(file) {
+  return file.replace(/\.html$/, "");
+}
+
+// ---------- Load recipes.json + parse each recipe's JSON-LD ----------
+async function loadRecipes() {
+  const res = await fetch("recipes.json", {cache: "no-store"});
+  const data = await res.json();
+  recipesIndex = data.recipes.filter(r => r.status !== "retired");
+
+  await Promise.all(recipesIndex.map(async (entry) => {
+    try {
+      const html = await (await fetch(entry.file, {cache: "no-store"})).text();
+      const match = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+      if (match) {
+        const json = JSON.parse(match[1]);
+        recipeDetails[entry.file] = json;
+      }
+    } catch (e) {
+      console.error("Failed to load recipe", entry.file, e);
+    }
+  }));
+}
+
+// ---------- Firestore live sync ----------
+function listenToRatings() {
+  if (!db) return;
+  fb.onSnapshot(fb.collection(db, "ratings"), (snap) => {
+    ratings = {};
+    snap.forEach(docSnap => {
+      ratings[docSnap.id] = docSnap.data().people || {};
+    });
+    render();
+  }, (err) => console.error("ratings listener error", err));
+}
+
+function listenToVotes() {
+  if (!db) return;
+  fb.onSnapshot(fb.collection(db, "votes"), (snap) => {
+    votes = {};
+    snap.forEach(docSnap => {
+      votes[docSnap.id] = docSnap.data();
+    });
+    render();
+  }, (err) => console.error("votes listener error", err));
+}
+
+async function setRating(recipeId, stars, comment) {
+  if (!currentUser) return;
+  if (!db) { alert("Not connected — ratings can't be saved right now. Check your internet connection."); return; }
+  const ref = fb.doc(db, "ratings", recipeId);
+  const existing = ratings[recipeId] || {};
+  const updated = {
+    ...existing,
+    [currentUser]: {
+      stars: stars ?? (existing[currentUser]?.stars ?? null),
+      comment: comment !== undefined ? comment : (existing[currentUser]?.comment ?? ""),
+      updatedAt: new Date().toISOString()
+    }
+  };
+  await fb.setDoc(ref, { people: updated }, { merge: true });
+}
+
+async function toggleVote(recipeId) {
+  if (!currentUser) return;
+  if (!db) { alert("Not connected — votes can't be saved right now. Check your internet connection."); return; }
+  const ref = fb.doc(db, "votes", CURRENT_WEEK);
+  const weekVotes = votes[CURRENT_WEEK] || {};
+  const current = weekVotes[recipeId] || [];
+  const already = current.includes(currentUser);
+  const updated = already
+    ? current.filter(n => n !== currentUser)
+    : [...current, currentUser];
+  await fb.setDoc(ref, { [recipeId]: updated }, { merge: true });
+}
+
+// ---------- Rendering ----------
+function iso8601ToMinutes(iso) {
+  if (!iso) return null;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!m) return null;
+  const h = parseInt(m[1] || "0", 10);
+  const min = parseInt(m[2] || "0", 10);
+  return h * 60 + min;
+}
+
+function avgStars(recipeId) {
+  const people = ratings[recipeId] || {};
+  const vals = Object.values(people).map(p => p.stars).filter(v => typeof v === "number");
+  if (!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0) / vals.length;
+}
+
+function starsHtml(recipeId, interactive) {
+  const mine = (ratings[recipeId]?.[currentUser]?.stars) || 0;
+  let html = '<div class="stars">';
+  for (let i = 1; i <= 5; i++) {
+    html += `<button data-star="${i}" data-recipe="${recipeId}" class="${i <= mine ? 'filled' : ''}" ${interactive ? '' : 'disabled'}>★</button>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderVoteView() {
+  const weekVotes = votes[CURRENT_WEEK] || {};
+  const sorted = [...recipesIndex].sort((a,b) => {
+    const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
+    const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
+    return vb - va;
+  });
+
+  let html = `<div class="banner-info">Vote for the dinners you want this week. Tap the circle to add or remove your vote — everyone's votes update live.</div>`;
+  html += sorted.map(entry => {
+    const id = recipeIdFromFile(entry.file);
+    const recipe = recipeDetails[entry.file];
+    if (!recipe) return "";
+    const count = (weekVotes[id] || []).length;
+    const iVoted = (weekVotes[id] || []).includes(currentUser);
+    const mins = iso8601ToMinutes(recipe.totalTime);
+    return `
+      <div class="card vote-card">
+        <div class="info">
+          <h3>${recipe.name}</h3>
+          <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
+        </div>
+        <div class="vote-count">
+          <button class="vote-btn ${iVoted ? 'voted' : ''}" data-vote="${id}">${iVoted ? '✓' : '+'}</button>
+          <span class="num">${count}</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  if (!sorted.length) html += `<div class="empty">No recipes yet.</div>`;
+  return html;
+}
+
+function renderRecipesView() {
+  let html = "";
+  const sorted = [...recipesIndex].sort((a,b) => {
+    const ra = avgStars(recipeIdFromFile(a.file)) || 0;
+    const rb = avgStars(recipeIdFromFile(b.file)) || 0;
+    return rb - ra;
+  });
+
+  html += sorted.map(entry => {
+    const id = recipeIdFromFile(entry.file);
+    const recipe = recipeDetails[entry.file];
+    if (!recipe) return "";
+    const mins = iso8601ToMinutes(recipe.totalTime);
+    const people = ratings[id] || {};
+    const myComment = people[currentUser]?.comment || "";
+    const chips = FAMILY_MEMBERS.map(name => {
+      const s = people[name]?.stars;
+      return `<span class="chip">${name}: <strong>${s ? '★'.repeat(s) : '—'}</strong></span>`;
+    }).join("");
+    const comments = Object.entries(people)
+      .filter(([, v]) => v.comment)
+      .map(([name, v]) => `<div class="comment-item"><b>${name}:</b> ${escapeHtml(v.comment)}</div>`)
+      .join("");
+
+    return `
+      <div class="card">
+        <h3>${recipe.name}</h3>
+        <p class="desc">${recipe.description || ""}</p>
+        <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}${recipe.recipeYield ? `<span>${recipe.recipeYield}</span>` : ""}</div>
+        <div class="per-person">${chips}</div>
+        ${starsHtml(id, true)}
+        <textarea class="comment" data-recipe="${id}" placeholder="Notes for next time (e.g. 'add more garlic')...">${escapeHtml(myComment)}</textarea>
+        <div class="save-hint" data-hint="${id}"></div>
+        ${comments ? `<div class="comment-list">${comments}</div>` : ""}
+      </div>`;
+  }).join("");
+
+  if (!sorted.length) html = `<div class="empty">No recipes yet.</div>`;
+  return html;
+}
+
+function renderNewView() {
+  return `
+    <div class="banner-info">
+      This is where new recipe candidates will show up for the family to try and vote on.
+      Ask Claude in your regular conversation to suggest a batch of new recipes each week —
+      once added to the shared recipe list, they'll appear here automatically.
+    </div>
+    <div class="empty">No new candidates right now.</div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function render() {
+  if (!currentUser) return;
+  const main = document.getElementById("main");
+  let html = "";
+  if (firebaseStatus === "unavailable") {
+    html += `<div class="banner-info" style="border-left-color:#c0392b">Not connected to the shared database right now, so ratings and votes from others won't show up and yours won't save. Check your internet connection and reopen the app.</div>`;
+  }
+  if (activeView === "vote") html += renderVoteView();
+  else if (activeView === "recipes") html += renderRecipesView();
+  else html += renderNewView();
+  main.innerHTML = html;
+  attachHandlers();
+}
+
+function attachHandlers() {
+  document.querySelectorAll("[data-vote]").forEach(btn => {
+    btn.onclick = () => toggleVote(btn.dataset.vote);
+  });
+  document.querySelectorAll(".stars button[data-star]").forEach(btn => {
+    btn.onclick = () => setRating(btn.dataset.recipe, parseInt(btn.dataset.star, 10));
+  });
+  document.querySelectorAll("textarea.comment").forEach(ta => {
+    let timer;
+    ta.oninput = () => {
+      clearTimeout(timer);
+      const hint = document.querySelector(`[data-hint="${ta.dataset.recipe}"]`);
+      if (hint) hint.textContent = "Typing…";
+      timer = setTimeout(async () => {
+        await setRating(ta.dataset.recipe, undefined, ta.value);
+        if (hint) {
+          hint.textContent = "Saved";
+          setTimeout(() => { if (hint.textContent === "Saved") hint.textContent = ""; }, 1500);
+        }
+      }, 700);
+    };
+  });
+}
+
+// ---------- Name picker / onboarding ----------
+function renderNamePicker() {
+  const list = document.getElementById("nameList");
+  list.innerHTML = FAMILY_MEMBERS.map(name =>
+    `<button class="name-btn" data-name="${name}">${name}</button>`
+  ).join("");
+  list.querySelectorAll("button").forEach(btn => {
+    btn.onclick = () => {
+      currentUser = btn.dataset.name;
+      localStorage.setItem("familyDinners.user", currentUser);
+      showApp();
+    };
+  });
+}
+
+function showApp() {
+  document.getElementById("namePicker").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  document.getElementById("whoLabel").textContent = currentUser;
+  render();
+}
+
+document.getElementById("switchUser").onclick = () => {
+  currentUser = null;
+  localStorage.removeItem("familyDinners.user");
+  document.getElementById("app").style.display = "none";
+  document.getElementById("namePicker").style.display = "flex";
+};
+
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.onclick = () => {
+    activeView = btn.dataset.view;
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    render();
+  };
+});
+
+// ---------- Boot ----------
+(async function init() {
+  renderNamePicker();
+  await loadRecipes();
+  if (currentUser && FAMILY_MEMBERS.includes(currentUser)) {
+    showApp();
+  }
+  initFirebase(); // runs in background; app is usable before this resolves
+})();
+
+// Register service worker for installability (best-effort; ignore failures)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

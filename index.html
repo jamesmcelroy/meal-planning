@@ -229,6 +229,15 @@
     font-size:15px;font-weight:600;letter-spacing:-0.24px;color:var(--accent-blue);white-space:nowrap;
   } /* radius-full, min tap target */
   .queue-btn.queued{background:var(--accent-blue);color:#ffffff}
+  .filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .filter-chip{
+    padding:0 14px;height:36px;border-radius:9999px;background:var(--fill-quaternary);
+    font-size:14px;font-weight:600;letter-spacing:-0.15px;color:var(--label-secondary);white-space:nowrap;
+  } /* radius-full */
+  .filter-chip.active{background:var(--accent-blue);color:#ffffff}
+  .filter-group-label{font-size:11px;line-height:14px;letter-spacing:.02em;text-transform:uppercase;color:var(--label-tertiary);margin:0 0 6px;width:100%}
+  .filter-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .filter-clear{font-size:14px;font-weight:600;color:var(--accent-blue);padding:0 4px;height:36px;display:inline-flex;align-items:center}
   .history-item{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:12px 0;border-bottom:0.5px solid var(--separator);
@@ -319,6 +328,9 @@ let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, se
 let queue = {};               // recipeId -> { addedBy, addedAt } — shared "up next" shortlist, anyone can add/remove
 let activeView = "tonight";
 let searchQuery = "";
+let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork", "sausage", "vegetarian"
+let activeTempFilter = null;       // "hot" | "cold"
+let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -686,13 +698,63 @@ function renderVoteView() {
 
 function recipeSearchText(entry, recipe) {
   const ingredients = (recipe.recipeIngredient || []).join(" ");
-  return [recipe.name, recipe.description, ingredients, recipe.recipeCategory]
+  const tags = (entry.tags || []).join(" ");
+  return [recipe.name, recipe.description, ingredients, recipe.recipeCategory, entry.category, entry.temp, tags]
     .filter(Boolean).join(" ").toLowerCase();
+}
+
+// Category/temp/tag labels shown in the filter bar. Order here is display order.
+const CATEGORY_FILTERS = [
+  { value: "chicken", label: "Chicken" },
+  { value: "beef", label: "Beef" },
+  { value: "pork", label: "Pork" },
+  { value: "seafood", label: "Seafood" },
+  { value: "sausage", label: "Sausage" },
+  { value: "vegetarian", label: "Vegetarian" },
+];
+const TEMP_FILTERS = [
+  { value: "hot", label: "Hot" },
+  { value: "cold", label: "Cold" },
+];
+// "Anything else" filter dimension: a small set of prep-style tags that are
+// actually useful for a busy weeknight (how fast/hands-off it is, or what
+// format it is), rather than trying to tag every possible attribute.
+const TAG_FILTERS = [
+  { value: "quick", label: "Quick" },
+  { value: "slow-cooker", label: "Slow cooker" },
+  { value: "one-pan", label: "One pan" },
+  { value: "grill", label: "Grill" },
+  { value: "pasta", label: "Pasta" },
+  { value: "soup", label: "Soup" },
+  { value: "salad", label: "Salad" },
+  { value: "casserole", label: "Casserole" },
+];
+
+function recipeMatchesFilters(entry) {
+  if (activeCategoryFilter && entry.category !== activeCategoryFilter) return false;
+  if (activeTempFilter && entry.temp !== activeTempFilter) return false;
+  if (activeTagFilter && !(entry.tags || []).includes(activeTagFilter)) return false;
+  return true;
+}
+
+function filterChipHtml(f, activeValue, dataAttr) {
+  const isActive = activeValue === f.value;
+  return `<button class="filter-chip ${isActive ? "active" : ""}" data-${dataAttr}="${f.value}">${escapeHtml(f.label)}</button>`;
 }
 
 function renderChooseView() {
   let html = `<div class="banner-info">Search every recipe in the family database and add anything you're excited to eat to the shared "Up next" list. James picks from this list (or anything else) when it's time to set a night's dinner.</div>`;
   html += `<input type="text" class="search-box" id="recipeSearch" placeholder="Search by name, ingredient, or type..." value="${escapeHtml(searchQuery)}">`;
+
+  const anyFilterActive = activeCategoryFilter || activeTempFilter || activeTagFilter;
+  html += `<div class="filter-bar">`;
+  html += `<div class="filter-group-label">Category${anyFilterActive ? ` <span class="filter-clear" data-clear-filters>Clear filters</span>` : ""}</div>`;
+  html += `<div class="filter-group">${CATEGORY_FILTERS.map(f => filterChipHtml(f, activeCategoryFilter, "category-filter")).join("")}</div>`;
+  html += `<div class="filter-group-label">Temperature</div>`;
+  html += `<div class="filter-group">${TEMP_FILTERS.map(f => filterChipHtml(f, activeTempFilter, "temp-filter")).join("")}</div>`;
+  html += `<div class="filter-group-label">Style</div>`;
+  html += `<div class="filter-group">${TAG_FILTERS.map(f => filterChipHtml(f, activeTagFilter, "tag-filter")).join("")}</div>`;
+  html += `</div>`;
 
   const q = searchQuery.trim().toLowerCase();
   const queuedIds = Object.keys(queue);
@@ -719,16 +781,18 @@ function renderChooseView() {
   }
 
   // ---- Full searchable index ----
-  html += `<div class="section-label">${q ? "Search results" : "All recipes"}</div>`;
+  html += `<div class="section-label">${q || anyFilterActive ? "Search results" : "All recipes"}</div>`;
   const matches = recipesIndex.filter(entry => {
     const recipe = recipeDetails[entry.file];
     if (!recipe) return false;
+    if (!recipeMatchesFilters(entry)) return false;
     if (!q) return true;
     return recipeSearchText(entry, recipe).includes(q);
   });
 
   if (!matches.length) {
-    html += `<div class="empty">No recipes match "${escapeHtml(searchQuery)}".</div>`;
+    const what = q ? `match "${escapeHtml(searchQuery)}"` : "match these filters";
+    html += `<div class="empty">No recipes ${what}.</div>`;
   } else {
     html += matches.map(entry => {
       const id = recipeIdFromFile(entry.file);
@@ -838,6 +902,33 @@ function attachHandlers() {
         restored.focus();
         restored.setSelectionRange(pos, pos);
       }
+    };
+  }
+  document.querySelectorAll("[data-category-filter]").forEach(btn => {
+    btn.onclick = () => {
+      activeCategoryFilter = activeCategoryFilter === btn.dataset.categoryFilter ? null : btn.dataset.categoryFilter;
+      render();
+    };
+  });
+  document.querySelectorAll("[data-temp-filter]").forEach(btn => {
+    btn.onclick = () => {
+      activeTempFilter = activeTempFilter === btn.dataset.tempFilter ? null : btn.dataset.tempFilter;
+      render();
+    };
+  });
+  document.querySelectorAll("[data-tag-filter]").forEach(btn => {
+    btn.onclick = () => {
+      activeTagFilter = activeTagFilter === btn.dataset.tagFilter ? null : btn.dataset.tagFilter;
+      render();
+    };
+  });
+  const clearFiltersBtn = document.querySelector("[data-clear-filters]");
+  if (clearFiltersBtn) {
+    clearFiltersBtn.onclick = () => {
+      activeCategoryFilter = null;
+      activeTempFilter = null;
+      activeTagFilter = null;
+      render();
     };
   }
   document.querySelectorAll(".stars button[data-star]").forEach(btn => {

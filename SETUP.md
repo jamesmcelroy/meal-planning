@@ -51,6 +51,10 @@ On each phone, in **Safari** (must be Safari, not Chrome, for this to work on iO
 
 It'll now appear as an app icon and open full-screen, no browser bar.
 
+## Notes on the "Tonight" tab
+
+The Tonight tab lets anyone set which recipe is being cooked that day (a "What are we having tonight?" picker) and then rate it right away, without hunting through the Recipes tab. It stores one document per date in a `menu` collection in Firestore, so it also builds up a simple history of recent dinners as you go. No extra setup needed beyond what's already above — the `firestore.rules` file already includes a rule for the `menu` collection.
+
 ## Notes on names
 
 The family member names are hard-coded in `index.html` near the top of the `<script>` block:

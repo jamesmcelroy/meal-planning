@@ -30,7 +30,12 @@ service cloud.firestore {
 
     match /menu/{dateKey} {
       allow read: if true;
-      allow write: if request.resource.data.keys().hasOnly(['recipeId', 'setBy', 'setAt']);
+      // Only James sets what's cooking each night. Since this app has no login
+      // system, this can't verify identity — it only enforces the app's own
+      // contract (the app never sends any other setBy value), the same
+      // no-real-auth tradeoff described up top.
+      allow write: if request.resource.data.keys().hasOnly(['recipeId', 'setBy', 'setAt'])
+                   && request.resource.data.setBy == 'James';
     }
 
     // Deny everything else by default.

@@ -254,6 +254,7 @@
 
 <script type="module">
 const FAMILY_MEMBERS = ["James", "Roisin", "Colbie", "Bryce", "Gage"];
+const MENU_OWNER = "James"; // only this person can set what's cooking each night
 
 // Firebase is loaded dynamically and lazily so that a network hiccup or a
 // blocked CDN doesn't take down the whole app — the name picker, recipe
@@ -420,6 +421,7 @@ async function toggleVote(recipeId) {
 
 async function setTonightRecipe(dateKey, recipeId) {
   if (!currentUser) return;
+  if (currentUser !== MENU_OWNER) return; // only MENU_OWNER can set what's cooking each night
   if (!db) { alert("Not connected — the menu can't be saved right now. Check your internet connection."); return; }
   const ref = fb.doc(db, "menu", dateKey);
   if (!recipeId) {
@@ -501,22 +503,33 @@ function renderTonightView() {
 
   let html = "";
 
-  // ---- Set tonight's dinner (visible to everyone; James typically uses it) ----
-  const options = recipesIndex.map(entry => {
-    const id = recipeIdFromFile(entry.file);
-    const r = recipeDetails[entry.file];
-    if (!r) return "";
-    return `<option value="${id}" ${id === todaysRecipeId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
-  }).join("");
-  html += `
-    <div class="set-menu">
-      <div class="label">What are we having tonight?</div>
-      <select id="tonightPicker">
-        <option value="">— not set yet —</option>
-        ${options}
-      </select>
-    </div>
-  `;
+  // ---- Set tonight's dinner (only MENU_OWNER can change it; everyone else sees a read-only line) ----
+  if (currentUser === MENU_OWNER) {
+    const options = recipesIndex.map(entry => {
+      const id = recipeIdFromFile(entry.file);
+      const r = recipeDetails[entry.file];
+      if (!r) return "";
+      return `<option value="${id}" ${id === todaysRecipeId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
+    }).join("");
+    html += `
+      <div class="set-menu">
+        <div class="label">What are we having tonight?</div>
+        <select id="tonightPicker">
+          <option value="">— not set yet —</option>
+          ${options}
+        </select>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="set-menu">
+        <div class="label">What are we having tonight?</div>
+        <div style="font-size:17px;line-height:22px;letter-spacing:-0.43px;color:var(--label)">
+          ${todaysRecipe ? escapeHtml(todaysRecipe.name) : "— not set yet —"}
+        </div>
+      </div>
+    `;
+  }
 
   // ---- Tonight's meal, ready to rate ----
   if (todaysRecipe) {

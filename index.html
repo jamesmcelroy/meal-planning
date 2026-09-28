@@ -435,15 +435,41 @@ function renderTonightView() {
     html += `<div class="empty">No dinner set for tonight yet. Pick one above once you know what's cooking.</div>`;
   }
 
-  // ---- Recent history ----
-  const historyKeys = Object.keys(menu)
+  // ---- Recent nights, still open for rating ----
+  // The last few nights (not counting tonight) each get their own full
+  // rating widget, so the family can catch up on rating without having to
+  // hunt through the Recipes tab for what was cooked when.
+  const RATEABLE_PAST_NIGHTS = 2;
+  const allKeys = Object.keys(menu)
     .filter(k => k <= TODAY_KEY && menu[k]?.recipeId)
-    .sort((a, b) => b.localeCompare(a))
-    .slice(0, 8);
+    .sort((a, b) => b.localeCompare(a));
+  const pastKeys = allKeys.filter(k => k !== TODAY_KEY);
+  const rateableKeys = pastKeys.slice(0, RATEABLE_PAST_NIGHTS);
+  const olderKeys = pastKeys.slice(RATEABLE_PAST_NIGHTS, RATEABLE_PAST_NIGHTS + 8);
 
-  if (historyKeys.length) {
-    html += `<div class="section-label">Recent dinners</div><div class="card">`;
-    html += historyKeys.map(key => {
+  if (rateableKeys.length) {
+    html += `<div class="section-label">Rate a recent night</div>`;
+    html += rateableKeys.map(key => {
+      const entry = menu[key];
+      const recipeEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === entry.recipeId);
+      const recipe = recipeEntry ? recipeDetails[recipeEntry.file] : null;
+      if (!recipe) return "";
+      const mins = iso8601ToMinutes(recipe.totalTime);
+      return `
+        <div class="card">
+          <div class="label" style="color:#9c8c6c">${formatDateKey(key)}</div>
+          <h3>${escapeHtml(recipe.name)}</h3>
+          ${mins ? `<div class="meta-row"><span>${mins} min</span></div>` : ""}
+          ${ratingWidgetHtml(entry.recipeId, recipe)}
+        </div>
+      `;
+    }).join("");
+  }
+
+  // ---- Older history, summary only ----
+  if (olderKeys.length) {
+    html += `<div class="section-label">Earlier dinners</div><div class="card">`;
+    html += olderKeys.map(key => {
       const entry = menu[key];
       const recipeEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === entry.recipeId);
       const recipe = recipeEntry ? recipeDetails[recipeEntry.file] : null;
@@ -451,7 +477,7 @@ function renderTonightView() {
       const avg = recipe ? avgStars(entry.recipeId) : null;
       return `
         <div class="history-item">
-          <span class="hdate">${key === TODAY_KEY ? "Tonight" : formatDateKey(key)}</span>
+          <span class="hdate">${formatDateKey(key)}</span>
           <span class="hname">${escapeHtml(name)}</span>
           <span class="hstars">${avg ? '★ ' + avg.toFixed(1) : '<span class="none">not yet rated</span>'}</span>
         </div>

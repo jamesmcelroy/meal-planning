@@ -229,14 +229,16 @@
     font-size:15px;font-weight:600;letter-spacing:-0.24px;color:var(--accent-blue);white-space:nowrap;
   } /* radius-full, min tap target */
   .queue-btn.queued{background:var(--accent-blue);color:#ffffff}
-  .filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-  .filter-chip{
-    padding:0 14px;height:36px;border-radius:9999px;background:var(--fill-quaternary);
-    font-size:14px;font-weight:600;letter-spacing:-0.15px;color:var(--label-secondary);white-space:nowrap;
-  } /* radius-full */
-  .filter-chip.active{background:var(--accent-blue);color:#ffffff}
-  .filter-group-label{font-size:11px;line-height:14px;letter-spacing:.02em;text-transform:uppercase;color:var(--label-tertiary);margin:0 0 6px;width:100%}
-  .filter-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .filter-select{
+    -webkit-appearance:none;appearance:none;
+    padding:0 30px 0 14px;height:36px;border:none;border-radius:9999px;background:var(--fill-quaternary);color:var(--label-secondary);
+    font-size:14px;font-weight:600;letter-spacing:-0.15px;font-family:inherit;white-space:nowrap;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a8a8e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;
+  } /* radius-full, native <select> renders iOS's picker wheel */
+  .filter-select.active{background-color:var(--accent-blue);color:#ffffff}
+  .filter-select.active{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>")}
   .filter-clear{font-size:14px;font-weight:600;color:var(--accent-blue);padding:0 4px;height:36px;display:inline-flex;align-items:center}
   .history-item{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -737,9 +739,12 @@ function recipeMatchesFilters(entry) {
   return true;
 }
 
-function filterChipHtml(f, activeValue, dataAttr) {
-  const isActive = activeValue === f.value;
-  return `<button class="filter-chip ${isActive ? "active" : ""}" data-${dataAttr}="${f.value}">${escapeHtml(f.label)}</button>`;
+function filterSelectHtml(options, activeValue, dataAttr, placeholder) {
+  const isActive = !!activeValue;
+  const opts = [`<option value="">${escapeHtml(placeholder)}</option>`]
+    .concat(options.map(f => `<option value="${f.value}" ${activeValue === f.value ? "selected" : ""}>${escapeHtml(f.label)}</option>`))
+    .join("");
+  return `<select class="filter-select ${isActive ? "active" : ""}" data-${dataAttr}>${opts}</select>`;
 }
 
 function renderChooseView() {
@@ -748,12 +753,10 @@ function renderChooseView() {
 
   const anyFilterActive = activeCategoryFilter || activeTempFilter || activeTagFilter;
   html += `<div class="filter-bar">`;
-  html += `<div class="filter-group-label">Category${anyFilterActive ? ` <span class="filter-clear" data-clear-filters>Clear filters</span>` : ""}</div>`;
-  html += `<div class="filter-group">${CATEGORY_FILTERS.map(f => filterChipHtml(f, activeCategoryFilter, "category-filter")).join("")}</div>`;
-  html += `<div class="filter-group-label">Temperature</div>`;
-  html += `<div class="filter-group">${TEMP_FILTERS.map(f => filterChipHtml(f, activeTempFilter, "temp-filter")).join("")}</div>`;
-  html += `<div class="filter-group-label">Style</div>`;
-  html += `<div class="filter-group">${TAG_FILTERS.map(f => filterChipHtml(f, activeTagFilter, "tag-filter")).join("")}</div>`;
+  html += filterSelectHtml(CATEGORY_FILTERS, activeCategoryFilter, "category-filter", "Category");
+  html += filterSelectHtml(TEMP_FILTERS, activeTempFilter, "temp-filter", "Temperature");
+  html += filterSelectHtml(TAG_FILTERS, activeTagFilter, "tag-filter", "Style");
+  if (anyFilterActive) html += `<span class="filter-clear" data-clear-filters>Clear filters</span>`;
   html += `</div>`;
 
   const q = searchQuery.trim().toLowerCase();
@@ -904,24 +907,27 @@ function attachHandlers() {
       }
     };
   }
-  document.querySelectorAll("[data-category-filter]").forEach(btn => {
-    btn.onclick = () => {
-      activeCategoryFilter = activeCategoryFilter === btn.dataset.categoryFilter ? null : btn.dataset.categoryFilter;
+  const categoryFilterSelect = document.querySelector("[data-category-filter]");
+  if (categoryFilterSelect) {
+    categoryFilterSelect.onchange = () => {
+      activeCategoryFilter = categoryFilterSelect.value || null;
       render();
     };
-  });
-  document.querySelectorAll("[data-temp-filter]").forEach(btn => {
-    btn.onclick = () => {
-      activeTempFilter = activeTempFilter === btn.dataset.tempFilter ? null : btn.dataset.tempFilter;
+  }
+  const tempFilterSelect = document.querySelector("[data-temp-filter]");
+  if (tempFilterSelect) {
+    tempFilterSelect.onchange = () => {
+      activeTempFilter = tempFilterSelect.value || null;
       render();
     };
-  });
-  document.querySelectorAll("[data-tag-filter]").forEach(btn => {
-    btn.onclick = () => {
-      activeTagFilter = activeTagFilter === btn.dataset.tagFilter ? null : btn.dataset.tagFilter;
+  }
+  const tagFilterSelect = document.querySelector("[data-tag-filter]");
+  if (tagFilterSelect) {
+    tagFilterSelect.onchange = () => {
+      activeTagFilter = tagFilterSelect.value || null;
       render();
     };
-  });
+  }
   const clearFiltersBtn = document.querySelector("[data-clear-filters]");
   if (clearFiltersBtn) {
     clearFiltersBtn.onclick = () => {

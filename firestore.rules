@@ -38,6 +38,15 @@ service cloud.firestore {
                    && request.resource.data.setBy == 'James';
     }
 
+    match /queue/shared {
+      // Shared "up next" shortlist — anyone in the family can add or remove
+      // a recipe. This is intentionally open to everyone (unlike menu
+      // above), since choosing candidates for future meals is a shared
+      // activity, not something only James controls.
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;

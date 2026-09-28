@@ -108,6 +108,39 @@
   .section-label:first-child{margin-top:0}
   .empty{color:#9c8c6c;font-style:italic;text-align:center;padding:40px 20px;font-size:14px}
   .banner-info{background:#f5f0e4;border-left:3px solid #e8c96b;border-radius:0 8px 8px 0;padding:12px 14px;font-size:13px;color:#5c5040;margin-bottom:18px;line-height:1.5}
+
+  /* ---------- Tonight view ---------- */
+  .tonight-card{
+    background:#2c2416;color:#faf8f4;border-radius:16px;padding:22px 20px;margin-bottom:18px;
+  }
+  .tonight-card .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#e8c96b;margin-bottom:6px}
+  .tonight-card h2{font-size:24px;font-weight:600;color:#faf8f4;margin-bottom:4px}
+  .tonight-card .desc{font-size:14px;color:#c9bfa8;font-style:italic;margin-bottom:16px;line-height:1.5}
+  .tonight-card .stars button{color:#5c5040}
+  .tonight-card .stars button.filled{color:#e8c96b}
+  .tonight-card textarea.comment{background:#3a2f22;border-color:#4a3d2c;color:#faf8f4}
+  .tonight-card textarea.comment::placeholder{color:#8c806c}
+  .tonight-card .save-hint{color:#c9bfa8}
+  .tonight-card .per-person{margin-top:14px}
+  .tonight-card .chip{background:#3a2f22;color:#c9bfa8}
+  .tonight-card .chip strong{color:#faf8f4}
+  .set-menu{
+    background:#fff;border:1px solid #e5ddc9;border-radius:14px;padding:16px 18px;margin-bottom:18px;
+  }
+  .set-menu .label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9c8c6c;margin-bottom:10px}
+  .set-menu select{
+    width:100%;padding:12px;border:1px solid #e5ddc9;border-radius:8px;background:#faf8f4;color:#2c2416;
+    font-size:15px;font-family:inherit;
+  }
+  .history-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 0;border-bottom:1px solid #f0ead8;
+  }
+  .history-item:last-child{border-bottom:none}
+  .history-item .hdate{font-size:11px;color:#9c8c6c;text-transform:uppercase;letter-spacing:.04em;min-width:64px}
+  .history-item .hname{font-size:14px;color:#2c2416;flex:1}
+  .history-item .hstars{font-size:13px;color:#e8c96b;white-space:nowrap}
+  .history-item .hstars .none{color:#c9bfa8;font-style:italic;font-size:12px}
 </style>
 </head>
 <body>
@@ -130,7 +163,8 @@
   <main id="main"></main>
 
   <nav class="tabs">
-    <button data-view="vote" class="active"><span class="ic">🗳️</span>Vote</button>
+    <button data-view="tonight" class="active"><span class="ic">🍽️</span>Tonight</button>
+    <button data-view="vote"><span class="ic">🗳️</span>Vote</button>
     <button data-view="recipes"><span class="ic">📖</span>Recipes</button>
     <button data-view="new"><span class="ic">✨</span>New</button>
   </nav>
@@ -166,6 +200,7 @@ async function initFirebase() {
     firebaseStatus = "connected";
     listenToRatings();
     listenToVotes();
+    listenToMenu();
     render();
   } catch (e) {
     console.error("Firebase failed to load — app will run in read-only/offline mode.", e);
@@ -180,9 +215,11 @@ let recipesIndex = [];       // from recipes.json
 let recipeDetails = {};      // file -> parsed recipe object
 let ratings = {};            // recipeId -> { personName: {stars, comment} }
 let votes = {};              // weekKey -> { recipeId: [personNames] }
-let activeView = "vote";
+let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, setBy, setAt }
+let activeView = "tonight";
 
 const CURRENT_WEEK = getWeekKey();
+const TODAY_KEY = getDateKey();
 
 function getWeekKey(d = new Date()) {
   // ISO-ish week key: YYYY-Www, using US Eastern-style Monday start.
@@ -193,6 +230,22 @@ function getWeekKey(d = new Date()) {
   const yearStart = new Date(date.getFullYear(),0,1);
   const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
   return `${date.getFullYear()}-W${String(weekNo).padStart(2,"0")}`;
+}
+
+function getDateKey(d = new Date()) {
+  // YYYY-MM-DD in US Eastern time, so "tonight" means the same thing for
+  // everyone in the family regardless of the device's local timezone.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(d).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function formatDateKey(key) {
+  // "2026-09-27" -> "Sun, Sep 27"
+  const [y, m, d] = key.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(date);
 }
 
 function recipeIdFromFile(file) {
@@ -242,6 +295,17 @@ function listenToVotes() {
   }, (err) => console.error("votes listener error", err));
 }
 
+function listenToMenu() {
+  if (!db) return;
+  fb.onSnapshot(fb.collection(db, "menu"), (snap) => {
+    menu = {};
+    snap.forEach(docSnap => {
+      menu[docSnap.id] = docSnap.data();
+    });
+    render();
+  }, (err) => console.error("menu listener error", err));
+}
+
 async function setRating(recipeId, stars, comment) {
   if (!currentUser) return;
   if (!db) { alert("Not connected — ratings can't be saved right now. Check your internet connection."); return; }
@@ -271,6 +335,17 @@ async function toggleVote(recipeId) {
   await fb.setDoc(ref, { [recipeId]: updated }, { merge: true });
 }
 
+async function setTonightRecipe(dateKey, recipeId) {
+  if (!currentUser) return;
+  if (!db) { alert("Not connected — the menu can't be saved right now. Check your internet connection."); return; }
+  const ref = fb.doc(db, "menu", dateKey);
+  if (!recipeId) {
+    await fb.setDoc(ref, { recipeId: null, setBy: currentUser, setAt: new Date().toISOString() }, { merge: true });
+    return;
+  }
+  await fb.setDoc(ref, { recipeId, setBy: currentUser, setAt: new Date().toISOString() }, { merge: true });
+}
+
 // ---------- Rendering ----------
 function iso8601ToMinutes(iso) {
   if (!iso) return null;
@@ -295,6 +370,96 @@ function starsHtml(recipeId, interactive) {
     html += `<button data-star="${i}" data-recipe="${recipeId}" class="${i <= mine ? 'filled' : ''}" ${interactive ? '' : 'disabled'}>★</button>`;
   }
   html += '</div>';
+  return html;
+}
+
+function ratingWidgetHtml(id, recipe) {
+  const people = ratings[id] || {};
+  const myComment = people[currentUser]?.comment || "";
+  const chips = FAMILY_MEMBERS.map(name => {
+    const s = people[name]?.stars;
+    return `<span class="chip">${name}: <strong>${s ? '★'.repeat(s) : '—'}</strong></span>`;
+  }).join("");
+  const comments = Object.entries(people)
+    .filter(([, v]) => v.comment)
+    .map(([name, v]) => `<div class="comment-item"><b>${name}:</b> ${escapeHtml(v.comment)}</div>`)
+    .join("");
+  return `
+    <div class="per-person">${chips}</div>
+    ${starsHtml(id, true)}
+    <textarea class="comment" data-recipe="${id}" placeholder="Notes for next time (e.g. 'add more garlic')...">${escapeHtml(myComment)}</textarea>
+    <div class="save-hint" data-hint="${id}"></div>
+    ${comments ? `<div class="comment-list">${comments}</div>` : ""}
+  `;
+}
+
+function renderTonightView() {
+  const todaysMenu = menu[TODAY_KEY];
+  const todaysRecipeId = todaysMenu?.recipeId || null;
+  const todaysEntry = todaysRecipeId ? recipesIndex.find(r => recipeIdFromFile(r.file) === todaysRecipeId) : null;
+  const todaysRecipe = todaysEntry ? recipeDetails[todaysEntry.file] : null;
+
+  let html = "";
+
+  // ---- Set tonight's dinner (visible to everyone; James typically uses it) ----
+  const options = recipesIndex.map(entry => {
+    const id = recipeIdFromFile(entry.file);
+    const r = recipeDetails[entry.file];
+    if (!r) return "";
+    return `<option value="${id}" ${id === todaysRecipeId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
+  }).join("");
+  html += `
+    <div class="set-menu">
+      <div class="label">What are we having tonight?</div>
+      <select id="tonightPicker">
+        <option value="">— not set yet —</option>
+        ${options}
+      </select>
+    </div>
+  `;
+
+  // ---- Tonight's meal, ready to rate ----
+  if (todaysRecipe) {
+    const id = todaysRecipeId;
+    const mins = iso8601ToMinutes(todaysRecipe.totalTime);
+    html += `
+      <div class="card tonight-card">
+        <div class="label">Tonight</div>
+        <h2>${escapeHtml(todaysRecipe.name)}</h2>
+        ${todaysRecipe.description ? `<p class="desc">${escapeHtml(todaysRecipe.description)}</p>` : ""}
+        ${mins ? `<div class="meta-row" style="color:#c9bfa8"><span>${mins} min</span></div>` : ""}
+        ${ratingWidgetHtml(id, todaysRecipe)}
+      </div>
+    `;
+  } else {
+    html += `<div class="empty">No dinner set for tonight yet. Pick one above once you know what's cooking.</div>`;
+  }
+
+  // ---- Recent history ----
+  const historyKeys = Object.keys(menu)
+    .filter(k => k <= TODAY_KEY && menu[k]?.recipeId)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 8);
+
+  if (historyKeys.length) {
+    html += `<div class="section-label">Recent dinners</div><div class="card">`;
+    html += historyKeys.map(key => {
+      const entry = menu[key];
+      const recipeEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === entry.recipeId);
+      const recipe = recipeEntry ? recipeDetails[recipeEntry.file] : null;
+      const name = recipe ? recipe.name : entry.recipeId;
+      const avg = recipe ? avgStars(entry.recipeId) : null;
+      return `
+        <div class="history-item">
+          <span class="hdate">${key === TODAY_KEY ? "Tonight" : formatDateKey(key)}</span>
+          <span class="hname">${escapeHtml(name)}</span>
+          <span class="hstars">${avg ? '★ ' + avg.toFixed(1) : '<span class="none">not yet rated</span>'}</span>
+        </div>
+      `;
+    }).join("");
+    html += `</div>`;
+  }
+
   return html;
 }
 
@@ -344,27 +509,13 @@ function renderRecipesView() {
     const recipe = recipeDetails[entry.file];
     if (!recipe) return "";
     const mins = iso8601ToMinutes(recipe.totalTime);
-    const people = ratings[id] || {};
-    const myComment = people[currentUser]?.comment || "";
-    const chips = FAMILY_MEMBERS.map(name => {
-      const s = people[name]?.stars;
-      return `<span class="chip">${name}: <strong>${s ? '★'.repeat(s) : '—'}</strong></span>`;
-    }).join("");
-    const comments = Object.entries(people)
-      .filter(([, v]) => v.comment)
-      .map(([name, v]) => `<div class="comment-item"><b>${name}:</b> ${escapeHtml(v.comment)}</div>`)
-      .join("");
 
     return `
       <div class="card">
         <h3>${recipe.name}</h3>
         <p class="desc">${recipe.description || ""}</p>
         <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}${recipe.recipeYield ? `<span>${recipe.recipeYield}</span>` : ""}</div>
-        <div class="per-person">${chips}</div>
-        ${starsHtml(id, true)}
-        <textarea class="comment" data-recipe="${id}" placeholder="Notes for next time (e.g. 'add more garlic')...">${escapeHtml(myComment)}</textarea>
-        <div class="save-hint" data-hint="${id}"></div>
-        ${comments ? `<div class="comment-list">${comments}</div>` : ""}
+        ${ratingWidgetHtml(id, recipe)}
       </div>`;
   }).join("");
 
@@ -396,7 +547,8 @@ function render() {
   if (firebaseStatus === "unavailable") {
     html += `<div class="banner-info" style="border-left-color:#c0392b">Not connected to the shared database right now, so ratings and votes from others won't show up and yours won't save. Check your internet connection and reopen the app.</div>`;
   }
-  if (activeView === "vote") html += renderVoteView();
+  if (activeView === "tonight") html += renderTonightView();
+  else if (activeView === "vote") html += renderVoteView();
   else if (activeView === "recipes") html += renderRecipesView();
   else html += renderNewView();
   main.innerHTML = html;
@@ -404,6 +556,10 @@ function render() {
 }
 
 function attachHandlers() {
+  const tonightPicker = document.getElementById("tonightPicker");
+  if (tonightPicker) {
+    tonightPicker.onchange = () => setTonightRecipe(TODAY_KEY, tonightPicker.value || null);
+  }
   document.querySelectorAll("[data-vote]").forEach(btn => {
     btn.onclick = () => toggleVote(btn.dataset.vote);
   });

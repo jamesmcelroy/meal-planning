@@ -649,7 +649,11 @@ function renderTonightView() {
 
 function renderVoteView() {
   const weekVotes = votes[CURRENT_WEEK] || {};
-  const sorted = [...recipesIndex].sort((a,b) => {
+  // "unproven" recipes (bulk-imported from AnyList, not yet cooked/rated by
+  // this app) are searchable in Choose but excluded here so the weekly vote
+  // list stays focused on recipes the family actually knows.
+  const votable = recipesIndex.filter(r => r.status !== "unproven");
+  const sorted = [...votable].sort((a,b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
     const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
     return vb - va;
@@ -748,7 +752,10 @@ function renderChooseView() {
 
 function renderRecipesView() {
   let html = "";
-  const sorted = [...recipesIndex].sort((a,b) => {
+  // Same reasoning as Vote: keep bulk-imported "unproven" recipes out of the
+  // rating list until someone actually cooks and rates one from Choose.
+  const rateable = recipesIndex.filter(r => r.status !== "unproven");
+  const sorted = [...rateable].sort((a,b) => {
     const ra = avgStars(recipeIdFromFile(a.file)) || 0;
     const rb = avgStars(recipeIdFromFile(b.file)) || 0;
     return rb - ra;

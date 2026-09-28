@@ -214,6 +214,21 @@
     width:100%;padding:12px;min-height:44px;border:none;border-radius:10px;background:var(--surface-secondary);color:var(--label);
     font-size:17px;line-height:22px;letter-spacing:-0.43px;font-family:inherit;
   } /* radius-md, body */
+
+  /* ---------- Choose view (search + shared queue) ---------- */
+  .search-box{
+    width:100%;padding:12px 14px;min-height:44px;border:none;border-radius:10px;background:var(--surface-tertiary);color:var(--label);
+    font-size:17px;line-height:22px;letter-spacing:-0.43px;font-family:inherit;margin-bottom:16px;
+  } /* radius-md, body */
+  .search-box::placeholder{color:var(--label-tertiary)}
+  .queue-card{display:flex;align-items:center;gap:14px}
+  .queue-card .info{flex:1}
+  .queue-card .added-by{font-size:13px;line-height:18px;letter-spacing:-0.08px;color:var(--label-secondary);margin-top:2px}
+  .queue-btn{
+    min-width:44px;height:44px;padding:0 14px;border-radius:9999px;background:var(--fill-quaternary);
+    font-size:15px;font-weight:600;letter-spacing:-0.24px;color:var(--accent-blue);white-space:nowrap;
+  } /* radius-full, min tap target */
+  .queue-btn.queued{background:var(--accent-blue);color:#ffffff}
   .history-item{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:12px 0;border-bottom:0.5px solid var(--separator);
@@ -247,6 +262,7 @@
   <nav class="tabs">
     <button data-view="tonight" class="active"><span class="ic">🍽️</span>Tonight</button>
     <button data-view="vote"><span class="ic">🗳️</span>Vote</button>
+    <button data-view="choose"><span class="ic">🔍</span>Choose</button>
     <button data-view="recipes"><span class="ic">📖</span>Recipes</button>
     <button data-view="new"><span class="ic">✨</span>New</button>
   </nav>
@@ -284,6 +300,7 @@ async function initFirebase() {
     listenToRatings();
     listenToVotes();
     listenToMenu();
+    listenToQueue();
     render();
   } catch (e) {
     console.error("Firebase failed to load — app will run in read-only/offline mode.", e);
@@ -299,7 +316,9 @@ let recipeDetails = {};      // file -> parsed recipe object
 let ratings = {};            // recipeId -> { personName: {stars, comment} }
 let votes = {};              // weekKey -> { recipeId: [personNames] }
 let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, setBy, setAt }
+let queue = {};               // recipeId -> { addedBy, addedAt } — shared "up next" shortlist, anyone can add/remove
 let activeView = "tonight";
+let searchQuery = "";
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -390,6 +409,16 @@ function listenToMenu() {
   }, (err) => console.error("menu listener error", err));
 }
 
+function listenToQueue() {
+  if (!db) return;
+  // The shared queue lives in a single doc (queue/shared) since it's an
+  // unordered shortlist, not scoped to a week like votes.
+  fb.onSnapshot(fb.doc(db, "queue", "shared"), (docSnap) => {
+    queue = docSnap.exists() ? (docSnap.data() || {}) : {};
+    render();
+  }, (err) => console.error("queue listener error", err));
+}
+
 async function setRating(recipeId, stars, comment) {
   if (!currentUser) return;
   if (!db) { alert("Not connected — ratings can't be saved right now. Check your internet connection."); return; }
@@ -429,6 +458,22 @@ async function setTonightRecipe(dateKey, recipeId) {
     return;
   }
   await fb.setDoc(ref, { recipeId, setBy: currentUser, setAt: new Date().toISOString() }, { merge: true });
+}
+
+async function toggleQueue(recipeId) {
+  if (!currentUser) return;
+  if (!db) { alert("Not connected — the list can't be saved right now. Check your internet connection."); return; }
+  const ref = fb.doc(db, "queue", "shared");
+  if (queue[recipeId]) {
+    // Anyone can remove any entry — it's a shared shortlist, not a personal one.
+    const updated = { ...queue };
+    delete updated[recipeId];
+    await fb.setDoc(ref, updated);
+  } else {
+    await fb.setDoc(ref, {
+      [recipeId]: { addedBy: currentUser, addedAt: new Date().toISOString() }
+    }, { merge: true });
+  }
 }
 
 // ---------- Rendering ----------
@@ -635,6 +680,72 @@ function renderVoteView() {
   return html;
 }
 
+function recipeSearchText(entry, recipe) {
+  const ingredients = (recipe.recipeIngredient || []).join(" ");
+  return [recipe.name, recipe.description, ingredients, recipe.recipeCategory]
+    .filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderChooseView() {
+  let html = `<div class="banner-info">Search every recipe in the family database and add anything you're excited to eat to the shared "Up next" list. James picks from this list (or anything else) when it's time to set a night's dinner.</div>`;
+  html += `<input type="text" class="search-box" id="recipeSearch" placeholder="Search by name, ingredient, or type..." value="${escapeHtml(searchQuery)}">`;
+
+  const q = searchQuery.trim().toLowerCase();
+  const queuedIds = Object.keys(queue);
+
+  // ---- Up next: the shared shortlist ----
+  if (queuedIds.length) {
+    html += `<div class="section-label">Up next</div>`;
+    html += queuedIds.map(id => {
+      const entry = recipesIndex.find(r => recipeIdFromFile(r.file) === id);
+      const recipe = entry ? recipeDetails[entry.file] : null;
+      if (!recipe) return "";
+      const q = queue[id];
+      const mins = iso8601ToMinutes(recipe.totalTime);
+      return `
+        <div class="card queue-card">
+          <div class="info">
+            <h3>${escapeHtml(recipe.name)}</h3>
+            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
+            <div class="added-by">Added by ${escapeHtml(q.addedBy || "someone")}</div>
+          </div>
+          <button class="queue-btn queued" data-queue="${id}">Remove</button>
+        </div>`;
+    }).join("");
+  }
+
+  // ---- Full searchable index ----
+  html += `<div class="section-label">${q ? "Search results" : "All recipes"}</div>`;
+  const matches = recipesIndex.filter(entry => {
+    const recipe = recipeDetails[entry.file];
+    if (!recipe) return false;
+    if (!q) return true;
+    return recipeSearchText(entry, recipe).includes(q);
+  });
+
+  if (!matches.length) {
+    html += `<div class="empty">No recipes match "${escapeHtml(searchQuery)}".</div>`;
+  } else {
+    html += matches.map(entry => {
+      const id = recipeIdFromFile(entry.file);
+      const recipe = recipeDetails[entry.file];
+      const mins = iso8601ToMinutes(recipe.totalTime);
+      const inQueue = !!queue[id];
+      return `
+        <div class="card queue-card">
+          <div class="info">
+            <h3>${escapeHtml(recipe.name)}</h3>
+            <p class="desc">${escapeHtml(recipe.description || "")}</p>
+            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
+          </div>
+          <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+        </div>`;
+    }).join("");
+  }
+
+  return html;
+}
+
 function renderRecipesView() {
   let html = "";
   const sorted = [...recipesIndex].sort((a,b) => {
@@ -688,6 +799,7 @@ function render() {
   }
   if (activeView === "tonight") html += renderTonightView();
   else if (activeView === "vote") html += renderVoteView();
+  else if (activeView === "choose") html += renderChooseView();
   else if (activeView === "recipes") html += renderRecipesView();
   else html += renderNewView();
   main.innerHTML = html;
@@ -702,6 +814,25 @@ function attachHandlers() {
   document.querySelectorAll("[data-vote]").forEach(btn => {
     btn.onclick = () => toggleVote(btn.dataset.vote);
   });
+  document.querySelectorAll("[data-queue]").forEach(btn => {
+    btn.onclick = () => toggleQueue(btn.dataset.queue);
+  });
+  const recipeSearch = document.getElementById("recipeSearch");
+  if (recipeSearch) {
+    // Re-render on input (to filter live), but restore focus + cursor
+    // position afterward since innerHTML replacement would otherwise
+    // knock focus out of the field on every keystroke.
+    recipeSearch.oninput = () => {
+      searchQuery = recipeSearch.value;
+      const pos = recipeSearch.selectionStart;
+      render();
+      const restored = document.getElementById("recipeSearch");
+      if (restored) {
+        restored.focus();
+        restored.setSelectionRange(pos, pos);
+      }
+    };
+  }
   document.querySelectorAll(".stars button[data-star]").forEach(btn => {
     btn.onclick = () => setRating(btn.dataset.recipe, parseInt(btn.dataset.star, 10));
   });

@@ -76,9 +76,23 @@
   .card h3{font-size:19px;color:#1a1408;margin-bottom:4px}
   .card .desc{font-size:14px;color:#5c5040;font-style:italic;margin-bottom:10px;line-height:1.5}
   .card .meta-row{display:flex;gap:14px;font-size:11px;color:#9c8c6c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px}
-  .stars{display:flex;gap:4px;margin-bottom:8px}
+  .stars-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .stars{display:flex;gap:4px}
   .stars button{font-size:24px;color:#e0d8c8;line-height:1}
   .stars button.filled{color:#e8c96b}
+  .scale-toggle{
+    font-size:11px;color:#9c8c6c;text-decoration:underline;text-underline-offset:2px;
+    white-space:nowrap;
+  }
+  .tonight-card .scale-toggle{color:#c9bfa8}
+  .scale-legend{
+    font-size:12px;color:#5c5040;background:#f5f0e4;border-radius:8px;padding:8px 10px;
+    margin-bottom:10px;line-height:1.6;
+  }
+  .scale-legend div{display:flex;gap:6px}
+  .scale-legend b{color:#2c2416;min-width:14px}
+  .tonight-card .scale-legend{background:#3a2f22;color:#c9bfa8}
+  .tonight-card .scale-legend b{color:#faf8f4}
   .avg-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#5c5040;margin-bottom:10px}
   .avg-row .n{color:#9c8c6c}
   .per-person{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -217,6 +231,7 @@ let ratings = {};            // recipeId -> { personName: {stars, comment} }
 let votes = {};              // weekKey -> { recipeId: [personNames] }
 let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, setBy, setAt }
 let activeView = "tonight";
+const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
 const TODAY_KEY = getDateKey();
@@ -373,6 +388,18 @@ function starsHtml(recipeId, interactive) {
   return html;
 }
 
+const RATING_SCALE = [
+  ["1", "Didn't work — not worth repeating"],
+  ["2", "Edible, but something was off"],
+  ["3", "Solid — fine to make again"],
+  ["4", "Good — want it in regular rotation"],
+  ["5", "Favorite — always excited to see it planned"],
+];
+
+function scaleLegendHtml() {
+  return RATING_SCALE.map(([n, desc]) => `<div><b>${n}★</b><span>${escapeHtml(desc)}</span></div>`).join("");
+}
+
 function ratingWidgetHtml(id, recipe) {
   const people = ratings[id] || {};
   const myComment = people[currentUser]?.comment || "";
@@ -384,9 +411,14 @@ function ratingWidgetHtml(id, recipe) {
     .filter(([, v]) => v.comment)
     .map(([name, v]) => `<div class="comment-item"><b>${name}:</b> ${escapeHtml(v.comment)}</div>`)
     .join("");
+  const expanded = expandedScaleLegends.has(id);
   return `
     <div class="per-person">${chips}</div>
-    ${starsHtml(id, true)}
+    <div class="stars-row">
+      ${starsHtml(id, true)}
+      <button class="scale-toggle" data-scale-toggle="${id}">${expanded ? "hide" : "what do stars mean?"}</button>
+    </div>
+    ${expanded ? `<div class="scale-legend">${scaleLegendHtml()}</div>` : ""}
     <textarea class="comment" data-recipe="${id}" placeholder="Notes for next time (e.g. 'add more garlic')...">${escapeHtml(myComment)}</textarea>
     <div class="save-hint" data-hint="${id}"></div>
     ${comments ? `<div class="comment-list">${comments}</div>` : ""}
@@ -591,6 +623,14 @@ function attachHandlers() {
   });
   document.querySelectorAll(".stars button[data-star]").forEach(btn => {
     btn.onclick = () => setRating(btn.dataset.recipe, parseInt(btn.dataset.star, 10));
+  });
+  document.querySelectorAll("[data-scale-toggle]").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.scaleToggle;
+      if (expandedScaleLegends.has(id)) expandedScaleLegends.delete(id);
+      else expandedScaleLegends.add(id);
+      render();
+    };
   });
   document.querySelectorAll("textarea.comment").forEach(ta => {
     let timer;

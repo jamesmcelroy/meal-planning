@@ -664,9 +664,10 @@ function renderTonightView() {
 function renderVoteView() {
   const weekVotes = votes[CURRENT_WEEK] || {};
   // "unproven" recipes (bulk-imported from AnyList, not yet cooked/rated by
-  // this app) are searchable in Choose but excluded here so the weekly vote
-  // list stays focused on recipes the family actually knows.
-  const votable = recipesIndex.filter(r => r.status !== "unproven");
+  // this app) and "candidate" recipes (weekly auto-suggested, not yet
+  // reviewed in the New tab) are searchable in Choose but excluded here so
+  // the weekly vote list stays focused on recipes the family actually knows.
+  const votable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
   const sorted = [...votable].sort((a,b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
     const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
@@ -711,7 +712,6 @@ const CATEGORY_FILTERS = [
   { value: "beef", label: "Beef" },
   { value: "pork", label: "Pork" },
   { value: "seafood", label: "Seafood" },
-  { value: "sausage", label: "Sausage" },
   { value: "vegetarian", label: "Vegetarian" },
 ];
 const TEMP_FILTERS = [
@@ -819,9 +819,10 @@ function renderChooseView() {
 
 function renderRecipesView() {
   let html = "";
-  // Same reasoning as Vote: keep bulk-imported "unproven" recipes out of the
-  // rating list until someone actually cooks and rates one from Choose.
-  const rateable = recipesIndex.filter(r => r.status !== "unproven");
+  // Same reasoning as Vote: keep bulk-imported "unproven" and weekly
+  // "candidate" recipes out of the rating list until someone actually
+  // cooks and rates one from Choose or New.
+  const rateable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
   const sorted = [...rateable].sort((a,b) => {
     const ra = avgStars(recipeIdFromFile(a.file)) || 0;
     const rb = avgStars(recipeIdFromFile(b.file)) || 0;
@@ -847,15 +848,50 @@ function renderRecipesView() {
   return html;
 }
 
+// Same category labels as the Choose filters, used to group the week's
+// candidates (falls back to "Other" for anything uncategorized).
+const CATEGORY_LABELS = { chicken: "Chicken", beef: "Beef", pork: "Pork", seafood: "Seafood", vegetarian: "Vegetarian" };
+
 function renderNewView() {
-  return `
-    <div class="banner-info">
-      This is where new recipe candidates will show up for the family to try and vote on.
-      Ask Claude in your regular conversation to suggest a batch of new recipes each week —
-      once added to the shared recipe list, they'll appear here automatically.
-    </div>
-    <div class="empty">No new candidates right now.</div>
-  `;
+  const candidates = recipesIndex.filter(r => r.status === "candidate");
+
+  let html = `<div class="banner-info">Fresh recipe candidates James finds each Sunday — tap "Add" to put one on the shared "Up next" list. Once your family cooks and rates one from here or Choose, it graduates into the regular rotation.</div>`;
+
+  if (!candidates.length) {
+    html += `<div class="empty">No new candidates right now. Check back Sunday.</div>`;
+    return html;
+  }
+
+  // Group by category so the weekly batch reads as "3 chicken, 3 beef, ..."
+  // rather than one flat list.
+  const groups = {};
+  candidates.forEach(entry => {
+    const key = entry.category || "other";
+    (groups[key] = groups[key] || []).push(entry);
+  });
+  const orderedKeys = Object.keys(CATEGORY_LABELS).filter(k => groups[k]).concat(Object.keys(groups).filter(k => !CATEGORY_LABELS[k]));
+
+  orderedKeys.forEach(key => {
+    html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key] || "Other")}</div>`;
+    html += groups[key].map(entry => {
+      const id = recipeIdFromFile(entry.file);
+      const recipe = recipeDetails[entry.file];
+      if (!recipe) return "";
+      const mins = iso8601ToMinutes(recipe.totalTime);
+      const inQueue = !!queue[id];
+      return `
+        <div class="card queue-card">
+          <div class="info">
+            <h3>${escapeHtml(recipe.name)}</h3>
+            <p class="desc">${escapeHtml(recipe.description || "")}</p>
+            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}</div>
+          </div>
+          <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+        </div>`;
+    }).join("");
+  });
+
+  return html;
 }
 
 function escapeHtml(str) {

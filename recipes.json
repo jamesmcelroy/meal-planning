@@ -3,7 +3,7 @@
     {
       "file": "sheet-pan-sausage-roasted-veggies.html",
       "status": "active",
-      "category": "sausage",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "one-pan"
@@ -236,7 +236,7 @@
     {
       "file": "creamy-roasted-butternut-squash-pasta-with-sausage-and-spinach.html",
       "status": "unproven",
-      "category": "sausage",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "pasta"
@@ -316,7 +316,7 @@
     {
       "file": "sausage-subs.html",
       "status": "unproven",
-      "category": "sausage",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "quick"
@@ -437,7 +437,7 @@
     {
       "file": "creamy-tortellini-soup.html",
       "status": "unproven",
-      "category": "sausage",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "soup"
@@ -473,7 +473,7 @@
     {
       "file": "cheesy-pasta-and-sausage-video.html",
       "status": "unproven",
-      "category": "sausage",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "pasta"

@@ -2,299 +2,641 @@
   "recipes": [
     {
       "file": "sheet-pan-sausage-roasted-veggies.html",
-      "status": "active"
+      "status": "active",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
     },
     {
       "file": "shrimp-stir-fry.html",
-      "status": "active"
+      "status": "active",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "stir-fry",
+        "quick"
+      ]
     },
     {
       "file": "chicken-tacos.html",
-      "status": "active"
+      "status": "active",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "tacos"
+      ]
     },
     {
       "file": "pasta-garlic-oil-parmesan.html",
-      "status": "active"
+      "status": "active",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "pasta",
+        "quick"
+      ]
     },
     {
       "file": "ny-strip-steak.html",
-      "status": "active"
+      "status": "active",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill",
+        "steak"
+      ]
     },
     {
       "file": "soy-ginger-glazed-salmon.html",
-      "status": "active"
+      "status": "active",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "chicken-stir-fry-hoisin.html",
-      "status": "active"
+      "status": "active",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "stir-fry",
+        "quick"
+      ]
     },
     {
       "file": "burgers-bagged-salad.html",
-      "status": "retired"
+      "status": "retired",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill",
+        "quick"
+      ]
     },
     {
       "file": "roisins-chicken.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "casserole"
+      ]
     },
     {
       "file": "sour-cream-and-chive-potato-pizza.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "pizza"
+      ]
     },
     {
       "file": "bacon-lettuce-tomato-salad.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "cold",
+      "tags": [
+        "salad"
+      ]
     },
     {
       "file": "southwest-chicken-and-rice-bake.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "casserole"
+      ]
     },
     {
       "file": "herb-butter-salmon-and-asparagus-foil-packs.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "foil-pack",
+        "grill"
+      ]
     },
     {
       "file": "carne-asada.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
     },
     {
       "file": "best-formula-three-cheese-fondue.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot"
     },
     {
       "file": "fettuccine-alfredo.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "pasta",
+        "quick"
+      ]
     },
     {
       "file": "cajun-chicken-alfredo.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "pasta"
+      ]
     },
     {
       "file": "fiesta-chicken-fajitas.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "penne-pasta-with-prosciutto-sauce.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "pasta"
+      ]
     },
     {
       "file": "cheese-burgers.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill",
+        "quick"
+      ]
     },
     {
       "file": "broiled-tilapia-parmesan.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "chicken-tetrazzini.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "pasta",
+        "casserole"
+      ]
     },
     {
       "file": "mediterranean-salad.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "cold",
+      "tags": [
+        "salad"
+      ]
     },
     {
       "file": "one-skillet-greek-chicken-and-orzo-with-tomatoes-feta-and-tzatziki.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "one-pot"
+      ]
     },
     {
       "file": "bolognese-sauce.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "pasta",
+        "slow-cooker"
+      ]
     },
     {
       "file": "creamy-roasted-butternut-squash-pasta-with-sausage-and-spinach.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "pasta"
+      ]
     },
     {
       "file": "sheet-pan-chicken-fajitas.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
     },
     {
       "file": "simple-baked-cheesy-italian-chicken-meatballs.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot"
     },
     {
       "file": "taco-soup.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "soup",
+        "slow-cooker"
+      ]
     },
     {
       "file": "savory-beef-lo-mein.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "stir-fry",
+        "quick"
+      ]
     },
     {
       "file": "clam-chowder-bread-bowls.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "soup"
+      ]
     },
     {
       "file": "chicken-cobb-salad.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "cold",
+      "tags": [
+        "salad"
+      ]
     },
     {
       "file": "asian-lettuce-wraps.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "crock-pot-baked-potatoes.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
     },
     {
       "file": "sausage-subs.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "mediterranean-pasta.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "pasta"
+      ]
     },
     {
       "file": "weight-watchers-parmesan-chicken-cutlets.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "chicken-tortilla-casserole.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "casserole"
+      ]
     },
     {
       "file": "maniladas-with-white-cheese-and-roasted-tomatillo-sauces.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "casserole"
+      ]
     },
     {
       "file": "chicken-with-mustard-cream-sauce.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "sun-dried-tomato-spinach-and-bacon-chicken.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot"
     },
     {
       "file": "crock-pot-chicken-enchilada-soup.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "soup",
+        "slow-cooker"
+      ]
     },
     {
       "file": "cajun-chicken-stuffed-with-pepper-jack-cheese-and-spinach-recipe-4-1-5.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot"
     },
     {
       "file": "creamy-lemon-parmesan-chicken-piccata.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "chicken-and-brussel-sprouts-with-mustard-sauce.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot"
     },
     {
       "file": "beer-can-chicken.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
     },
     {
       "file": "crock-pot-chicken-cacciatore.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
     },
     {
       "file": "picnic-fried-chicken.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot"
     },
     {
       "file": "jalapeno-popper-stuffed-pork-tenderloin.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot"
     },
     {
       "file": "creamy-tortellini-soup.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "soup"
+      ]
     },
     {
       "file": "herb-rubbed-sirloin-tip-roast.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot"
     },
     {
       "file": "roasted-pork-tenderloin-recipe.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot"
     },
     {
       "file": "stuffed-peppers.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "casserole"
+      ]
     },
     {
       "file": "yes-virginia-there-is-a-great-meatloaf.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot"
     },
     {
       "file": "cheesy-pasta-and-sausage-video.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "pasta"
+      ]
     },
     {
       "file": "pork-tenderloin-recipe.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "easy-cilantro-lime-chicken-recipe.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
     },
     {
       "file": "cast-iron-skillet-seared-salmon.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "big-dave-sloppy-joe.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "the-best-steak-marinade.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
     },
     {
       "file": "garlic-lime-marinated-pork-chops.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "grill",
+        "quick"
+      ]
     },
     {
       "file": "slow-cooker-chicken-fajitas.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
     },
     {
       "file": "tacos.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "tacos"
+      ]
     },
     {
       "file": "philippine-rice.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "one-pot"
+      ]
     },
     {
       "file": "zucchini-bisque.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "soup"
+      ]
     },
     {
       "file": "grands-monkey-bread.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot"
     },
     {
       "file": "loaded-baked-potatoes.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot"
     },
     {
       "file": "steak-on-the-grill.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
     },
     {
       "file": "popcorn-nachos.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     },
     {
       "file": "boboli-mexican-pizza.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "pizza",
+        "quick"
+      ]
     },
     {
       "file": "roasted-sweet-potatoes.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot"
     },
     {
       "file": "mashed-cauliflower.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot"
     },
     {
       "file": "slow-cooker-ratatouille.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
     },
     {
       "file": "meatloaf.html",
-      "status": "unproven"
+      "status": "unproven",
+      "category": "beef",
+      "temp": "hot"
     },
     {
       "file": "bruschetta-chicken.html",

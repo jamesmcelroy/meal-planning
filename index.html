@@ -229,6 +229,17 @@
     font-size:15px;font-weight:600;letter-spacing:-0.24px;color:var(--accent-blue);white-space:nowrap;
   } /* radius-full, min tap target */
   .queue-btn.queued{background:var(--accent-blue);color:#ffffff}
+  .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .filter-select{
+    -webkit-appearance:none;appearance:none;
+    padding:0 30px 0 14px;height:36px;border:none;border-radius:9999px;background:var(--fill-quaternary);color:var(--label-secondary);
+    font-size:14px;font-weight:600;letter-spacing:-0.15px;font-family:inherit;white-space:nowrap;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a8a8e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;
+  } /* radius-full, native <select> renders iOS's picker wheel */
+  .filter-select.active{background-color:var(--accent-blue);color:#ffffff}
+  .filter-select.active{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>")}
+  .filter-clear{font-size:14px;font-weight:600;color:var(--accent-blue);padding:0 4px;height:36px;display:inline-flex;align-items:center}
   .history-item{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:12px 0;border-bottom:0.5px solid var(--separator);
@@ -319,6 +330,9 @@ let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, se
 let queue = {};               // recipeId -> { addedBy, addedAt } — shared "up next" shortlist, anyone can add/remove
 let activeView = "tonight";
 let searchQuery = "";
+let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork", "sausage", "vegetarian"
+let activeTempFilter = null;       // "hot" | "cold"
+let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -650,9 +664,10 @@ function renderTonightView() {
 function renderVoteView() {
   const weekVotes = votes[CURRENT_WEEK] || {};
   // "unproven" recipes (bulk-imported from AnyList, not yet cooked/rated by
-  // this app) are searchable in Choose but excluded here so the weekly vote
-  // list stays focused on recipes the family actually knows.
-  const votable = recipesIndex.filter(r => r.status !== "unproven");
+  // this app) and "candidate" recipes (weekly auto-suggested, not yet
+  // reviewed in the New tab) are searchable in Choose but excluded here so
+  // the weekly vote list stays focused on recipes the family actually knows.
+  const votable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
   const sorted = [...votable].sort((a,b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
     const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
@@ -686,13 +701,63 @@ function renderVoteView() {
 
 function recipeSearchText(entry, recipe) {
   const ingredients = (recipe.recipeIngredient || []).join(" ");
-  return [recipe.name, recipe.description, ingredients, recipe.recipeCategory]
+  const tags = (entry.tags || []).join(" ");
+  return [recipe.name, recipe.description, ingredients, recipe.recipeCategory, entry.category, entry.temp, tags]
     .filter(Boolean).join(" ").toLowerCase();
+}
+
+// Category/temp/tag labels shown in the filter bar. Order here is display order.
+const CATEGORY_FILTERS = [
+  { value: "chicken", label: "Chicken" },
+  { value: "beef", label: "Beef" },
+  { value: "pork", label: "Pork" },
+  { value: "seafood", label: "Seafood" },
+  { value: "vegetarian", label: "Vegetarian" },
+];
+const TEMP_FILTERS = [
+  { value: "hot", label: "Hot" },
+  { value: "cold", label: "Cold" },
+];
+// "Anything else" filter dimension: a small set of prep-style tags that are
+// actually useful for a busy weeknight (how fast/hands-off it is, or what
+// format it is), rather than trying to tag every possible attribute.
+const TAG_FILTERS = [
+  { value: "quick", label: "Quick" },
+  { value: "slow-cooker", label: "Slow cooker" },
+  { value: "one-pan", label: "One pan" },
+  { value: "grill", label: "Grill" },
+  { value: "pasta", label: "Pasta" },
+  { value: "soup", label: "Soup" },
+  { value: "salad", label: "Salad" },
+  { value: "casserole", label: "Casserole" },
+];
+
+function recipeMatchesFilters(entry) {
+  if (activeCategoryFilter && entry.category !== activeCategoryFilter) return false;
+  if (activeTempFilter && entry.temp !== activeTempFilter) return false;
+  if (activeTagFilter && !(entry.tags || []).includes(activeTagFilter)) return false;
+  return true;
+}
+
+function filterSelectHtml(options, activeValue, dataAttr, placeholder) {
+  const isActive = !!activeValue;
+  const opts = [`<option value="">${escapeHtml(placeholder)}</option>`]
+    .concat(options.map(f => `<option value="${f.value}" ${activeValue === f.value ? "selected" : ""}>${escapeHtml(f.label)}</option>`))
+    .join("");
+  return `<select class="filter-select ${isActive ? "active" : ""}" data-${dataAttr}>${opts}</select>`;
 }
 
 function renderChooseView() {
   let html = `<div class="banner-info">Search every recipe in the family database and add anything you're excited to eat to the shared "Up next" list. James picks from this list (or anything else) when it's time to set a night's dinner.</div>`;
   html += `<input type="text" class="search-box" id="recipeSearch" placeholder="Search by name, ingredient, or type..." value="${escapeHtml(searchQuery)}">`;
+
+  const anyFilterActive = activeCategoryFilter || activeTempFilter || activeTagFilter;
+  html += `<div class="filter-bar">`;
+  html += filterSelectHtml(CATEGORY_FILTERS, activeCategoryFilter, "category-filter", "Category");
+  html += filterSelectHtml(TEMP_FILTERS, activeTempFilter, "temp-filter", "Temperature");
+  html += filterSelectHtml(TAG_FILTERS, activeTagFilter, "tag-filter", "Style");
+  if (anyFilterActive) html += `<span class="filter-clear" data-clear-filters>Clear filters</span>`;
+  html += `</div>`;
 
   const q = searchQuery.trim().toLowerCase();
   const queuedIds = Object.keys(queue);
@@ -719,16 +784,18 @@ function renderChooseView() {
   }
 
   // ---- Full searchable index ----
-  html += `<div class="section-label">${q ? "Search results" : "All recipes"}</div>`;
+  html += `<div class="section-label">${q || anyFilterActive ? "Search results" : "All recipes"}</div>`;
   const matches = recipesIndex.filter(entry => {
     const recipe = recipeDetails[entry.file];
     if (!recipe) return false;
+    if (!recipeMatchesFilters(entry)) return false;
     if (!q) return true;
     return recipeSearchText(entry, recipe).includes(q);
   });
 
   if (!matches.length) {
-    html += `<div class="empty">No recipes match "${escapeHtml(searchQuery)}".</div>`;
+    const what = q ? `match "${escapeHtml(searchQuery)}"` : "match these filters";
+    html += `<div class="empty">No recipes ${what}.</div>`;
   } else {
     html += matches.map(entry => {
       const id = recipeIdFromFile(entry.file);
@@ -752,9 +819,10 @@ function renderChooseView() {
 
 function renderRecipesView() {
   let html = "";
-  // Same reasoning as Vote: keep bulk-imported "unproven" recipes out of the
-  // rating list until someone actually cooks and rates one from Choose.
-  const rateable = recipesIndex.filter(r => r.status !== "unproven");
+  // Same reasoning as Vote: keep bulk-imported "unproven" and weekly
+  // "candidate" recipes out of the rating list until someone actually
+  // cooks and rates one from Choose or New.
+  const rateable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
   const sorted = [...rateable].sort((a,b) => {
     const ra = avgStars(recipeIdFromFile(a.file)) || 0;
     const rb = avgStars(recipeIdFromFile(b.file)) || 0;
@@ -780,15 +848,50 @@ function renderRecipesView() {
   return html;
 }
 
+// Same category labels as the Choose filters, used to group the week's
+// candidates (falls back to "Other" for anything uncategorized).
+const CATEGORY_LABELS = { chicken: "Chicken", beef: "Beef", pork: "Pork", seafood: "Seafood", vegetarian: "Vegetarian" };
+
 function renderNewView() {
-  return `
-    <div class="banner-info">
-      This is where new recipe candidates will show up for the family to try and vote on.
-      Ask Claude in your regular conversation to suggest a batch of new recipes each week —
-      once added to the shared recipe list, they'll appear here automatically.
-    </div>
-    <div class="empty">No new candidates right now.</div>
-  `;
+  const candidates = recipesIndex.filter(r => r.status === "candidate");
+
+  let html = `<div class="banner-info">Fresh recipe candidates James finds each Sunday — tap "Add" to put one on the shared "Up next" list. Once your family cooks and rates one from here or Choose, it graduates into the regular rotation.</div>`;
+
+  if (!candidates.length) {
+    html += `<div class="empty">No new candidates right now. Check back Sunday.</div>`;
+    return html;
+  }
+
+  // Group by category so the weekly batch reads as "3 chicken, 3 beef, ..."
+  // rather than one flat list.
+  const groups = {};
+  candidates.forEach(entry => {
+    const key = entry.category || "other";
+    (groups[key] = groups[key] || []).push(entry);
+  });
+  const orderedKeys = Object.keys(CATEGORY_LABELS).filter(k => groups[k]).concat(Object.keys(groups).filter(k => !CATEGORY_LABELS[k]));
+
+  orderedKeys.forEach(key => {
+    html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key] || "Other")}</div>`;
+    html += groups[key].map(entry => {
+      const id = recipeIdFromFile(entry.file);
+      const recipe = recipeDetails[entry.file];
+      if (!recipe) return "";
+      const mins = iso8601ToMinutes(recipe.totalTime);
+      const inQueue = !!queue[id];
+      return `
+        <div class="card queue-card">
+          <div class="info">
+            <h3>${escapeHtml(recipe.name)}</h3>
+            <p class="desc">${escapeHtml(recipe.description || "")}</p>
+            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}</div>
+          </div>
+          <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+        </div>`;
+    }).join("");
+  });
+
+  return html;
 }
 
 function escapeHtml(str) {
@@ -838,6 +941,36 @@ function attachHandlers() {
         restored.focus();
         restored.setSelectionRange(pos, pos);
       }
+    };
+  }
+  const categoryFilterSelect = document.querySelector("[data-category-filter]");
+  if (categoryFilterSelect) {
+    categoryFilterSelect.onchange = () => {
+      activeCategoryFilter = categoryFilterSelect.value || null;
+      render();
+    };
+  }
+  const tempFilterSelect = document.querySelector("[data-temp-filter]");
+  if (tempFilterSelect) {
+    tempFilterSelect.onchange = () => {
+      activeTempFilter = tempFilterSelect.value || null;
+      render();
+    };
+  }
+  const tagFilterSelect = document.querySelector("[data-tag-filter]");
+  if (tagFilterSelect) {
+    tagFilterSelect.onchange = () => {
+      activeTagFilter = tagFilterSelect.value || null;
+      render();
+    };
+  }
+  const clearFiltersBtn = document.querySelector("[data-clear-filters]");
+  if (clearFiltersBtn) {
+    clearFiltersBtn.onclick = () => {
+      activeCategoryFilter = null;
+      activeTempFilter = null;
+      activeTagFilter = null;
+      render();
     };
   }
   document.querySelectorAll(".stars button[data-star]").forEach(btn => {

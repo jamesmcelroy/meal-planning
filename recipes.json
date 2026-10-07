@@ -782,6 +782,143 @@
       "tags": [
         "quick"
       ]
+    },
+    {
+      "file": "chicken-shawarma-bowls.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "salad"
+      ]
+    },
+    {
+      "file": "thai-coconut-curry-chicken-thighs.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "chicken-fried-rice.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "beef-stroganoff.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "pasta"
+      ]
+    },
+    {
+      "file": "korean-gochujang-beef-bowls.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "classic-beef-chili.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "soup"
+      ]
+    },
+    {
+      "file": "sweet-and-sour-pork-stir-fry.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "banh-mi-bowls.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot"
+    },
+    {
+      "file": "slow-cooker-pork-carnitas.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "slow-cooker"
+      ]
+    },
+    {
+      "file": "tajin-shrimp-tacos.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "lemon-baked-cod.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "teriyaki-salmon-with-sriracha-mayo.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "coconut-curry-chickpeas.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "shakshuka.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "one-pan"
+      ]
+    },
+    {
+      "file": "sweet-potato-tacos-with-lime-crema.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
     }
   ]
 }

@@ -244,6 +244,23 @@
     font-size:17px;line-height:22px;letter-spacing:-0.43px;font-family:inherit;
   } /* radius-md, body */
 
+  /* ---------- This week (rolling 7-day planner on Home) ---------- */
+  .week-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 0;border-bottom:0.5px solid var(--separator);
+  }
+  .week-item:last-child{border-bottom:none}
+  .week-item .wdate{font-size:13px;line-height:18px;letter-spacing:-0.08px;color:var(--label-secondary);min-width:78px}
+  .week-item .wdate.today{color:var(--accent-blue);font-weight:700}
+  .week-item .wname{font-size:15px;line-height:20px;letter-spacing:-0.24px;color:var(--label);flex:1;text-align:right}
+  .week-item .wname.unset{color:var(--label-tertiary);font-style:italic}
+  .week-item select{
+    max-width:180px;padding:0 28px 0 12px;height:36px;border:none;border-radius:9999px;background:var(--fill-quaternary);color:var(--label);
+    font-size:14px;font-weight:600;letter-spacing:-0.15px;font-family:inherit;-webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238a8a8e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;
+  }
+
   /* ---------- Choose view (search + shared queue) ---------- */
   .search-box{
     width:100%;padding:12px 14px;min-height:44px;border:none;border-radius:10px;background:var(--surface-tertiary);color:var(--label);
@@ -471,6 +488,54 @@ function formatDateKey(key) {
   const [y, m, d] = key.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d, 12));
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(date);
+}
+
+function dateKeyPlusDays(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return getDateKey(d);
+}
+
+function upcomingWeekKeys() {
+  // Today (TODAY_KEY) through the next 6 days -- the rolling 7-day
+  // planning window shown on the Home tab and used for day-assignment
+  // in Choose.
+  return Array.from({ length: 7 }, (_, i) => dateKeyPlusDays(i));
+}
+
+function friendlyDateLabel(key) {
+  if (key === TODAY_KEY) return "Today";
+  if (key === dateKeyPlusDays(1)) return "Tomorrow";
+  return formatDateKey(key);
+}
+
+function recipeOptionsHtml(selectedId) {
+  return recipesIndex.map(entry => {
+    const id = recipeIdFromFile(entry.file);
+    const r = recipeDetails[entry.file];
+    if (!r) return "";
+    return `<option value="${id}" ${id === selectedId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
+  }).join("");
+}
+
+function dayAssignSelectHtml(recipeId) {
+  // Lets James schedule a recipe directly onto one of the next 7 days from
+  // Choose (or from the shared Up Next list), instead of only queuing it
+  // and setting the day later from Home. Resets to the placeholder after
+  // each use -- it's a one-shot action, not a persistent field.
+  const options = upcomingWeekKeys().map(key => {
+    const existingId = menu[key]?.recipeId || null;
+    let suffix = "";
+    if (existingId && existingId !== recipeId) {
+      const existingEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === existingId);
+      const existingRecipe = existingEntry ? recipeDetails[existingEntry.file] : null;
+      if (existingRecipe) suffix = ` (replace ${existingRecipe.name})`;
+    } else if (existingId === recipeId) {
+      suffix = " (already set)";
+    }
+    return `<option value="${key}">${escapeHtml(friendlyDateLabel(key) + suffix)}</option>`;
+  }).join("");
+  return `<select class="filter-select" data-day-assign="${recipeId}"><option value="">Assign to a day…</option>${options}</select>`;
 }
 
 function recipeIdFromFile(file) {
@@ -703,20 +768,47 @@ function renderTonightView() {
 
   let html = "";
 
+  // ---- This week: rolling 7-day forward plan ----
+  // James can set or change any of the 7 days right here, not just
+  // tonight's -- the same setTonightRecipe() write either way.
+  html += `<div class="section-label">This week</div><div class="card">`;
+  html += upcomingWeekKeys().map(key => {
+    const dayRecipeId = menu[key]?.recipeId || null;
+    const dayEntry = dayRecipeId ? recipesIndex.find(r => recipeIdFromFile(r.file) === dayRecipeId) : null;
+    const dayRecipe = dayEntry ? recipeDetails[dayEntry.file] : null;
+    const label = friendlyDateLabel(key);
+    const isToday = key === TODAY_KEY;
+
+    if (currentUser === MENU_OWNER) {
+      return `
+        <div class="week-item">
+          <span class="wdate${isToday ? " today" : ""}">${escapeHtml(label)}</span>
+          <select data-week-picker="${key}">
+            <option value="">— not set —</option>
+            ${recipeOptionsHtml(dayRecipeId)}
+          </select>
+        </div>`;
+    }
+    return `
+      <div class="week-item">
+        <span class="wdate${isToday ? " today" : ""}">${escapeHtml(label)}</span>
+        <span class="wname${dayRecipe ? "" : " unset"}">${dayRecipe ? escapeHtml(dayRecipe.name) : "Not set"}</span>
+      </div>`;
+  }).join("");
+  html += `</div>`;
+
+  // ---- Up next: the shared shortlist, visible/editable by everyone here
+  // even though browsing for new recipes to add is now James-only (Choose) ----
+  html += upNextSectionHtml();
+
   // ---- Set tonight's dinner (only MENU_OWNER can change it; everyone else sees a read-only line) ----
   if (currentUser === MENU_OWNER) {
-    const options = recipesIndex.map(entry => {
-      const id = recipeIdFromFile(entry.file);
-      const r = recipeDetails[entry.file];
-      if (!r) return "";
-      return `<option value="${id}" ${id === todaysRecipeId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
-    }).join("");
     html += `
       <div class="set-menu">
         <div class="label">What are we having tonight?</div>
         <select id="tonightPicker">
           <option value="">— not set yet —</option>
-          ${options}
+          ${recipeOptionsHtml(todaysRecipeId)}
         </select>
       </div>
     `;
@@ -981,8 +1073,37 @@ function filterSelectHtml(options, activeValue, dataAttr, placeholder) {
   return `<select class="filter-select ${isActive ? "active" : ""}" data-${dataAttr}>${opts}</select>`;
 }
 
+// Shared between the Home tab (everyone can see/remove) and Choose
+// (James-only browsing). Day-assignment only ever shows for MENU_OWNER,
+// so it appears here automatically on both.
+function upNextSectionHtml() {
+  const queuedIds = Object.keys(queue);
+  if (!queuedIds.length) return "";
+  let html = `<div class="section-label">Up next</div>`;
+  html += queuedIds.map(id => {
+    const entry = recipesIndex.find(r => recipeIdFromFile(r.file) === id);
+    const recipe = entry ? recipeDetails[entry.file] : null;
+    if (!recipe) return "";
+    const q = queue[id];
+    const mins = iso8601ToMinutes(recipe.totalTime);
+    return `
+      <div class="card queue-card">
+        <div class="info">
+          <h3>${escapeHtml(recipe.name)}${originChipHtml(entry)}</h3>
+          <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
+          <div class="added-by">Added by ${escapeHtml(q.addedBy || "someone")}</div>
+        </div>
+        <div class="candidate-actions">
+          <button class="queue-btn queued" data-queue="${id}">Remove</button>
+          ${currentUser === MENU_OWNER ? dayAssignSelectHtml(id) : ""}
+        </div>
+      </div>`;
+  }).join("");
+  return html;
+}
+
 function renderChooseView() {
-  let html = `<div class="banner-info">Search every recipe in the family database and add anything you're excited to eat to the shared "Up next" list. James picks from this list (or anything else) when it's time to set a night's dinner.</div>`;
+  let html = `<div class="banner-info">Search every recipe in the family database. Add anything you're excited to eat to the shared "Up next" list, or assign it straight to a day this week.</div>`;
   html += `<input type="text" class="search-box" id="recipeSearch" placeholder="Search by name, ingredient, or type..." value="${escapeHtml(searchQuery)}">`;
 
   const anyFilterActive = activeCategoryFilter || activeTempFilter || activeTagFilter;
@@ -994,28 +1115,8 @@ function renderChooseView() {
   html += `</div>`;
 
   const q = searchQuery.trim().toLowerCase();
-  const queuedIds = Object.keys(queue);
 
-  // ---- Up next: the shared shortlist ----
-  if (queuedIds.length) {
-    html += `<div class="section-label">Up next</div>`;
-    html += queuedIds.map(id => {
-      const entry = recipesIndex.find(r => recipeIdFromFile(r.file) === id);
-      const recipe = entry ? recipeDetails[entry.file] : null;
-      if (!recipe) return "";
-      const q = queue[id];
-      const mins = iso8601ToMinutes(recipe.totalTime);
-      return `
-        <div class="card queue-card">
-          <div class="info">
-            <h3>${escapeHtml(recipe.name)}${originChipHtml(entry)}</h3>
-            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
-            <div class="added-by">Added by ${escapeHtml(q.addedBy || "someone")}</div>
-          </div>
-          <button class="queue-btn queued" data-queue="${id}">Remove</button>
-        </div>`;
-    }).join("");
-  }
+  html += upNextSectionHtml();
 
   // ---- Full searchable index ----
   html += `<div class="section-label">${q || anyFilterActive ? "Search results" : "All recipes"}</div>`;
@@ -1047,7 +1148,10 @@ function renderChooseView() {
             <p class="desc">${escapeHtml(recipe.description || "")}</p>
             <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
           </div>
-          <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+          <div class="candidate-actions">
+            <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+            ${currentUser === MENU_OWNER ? dayAssignSelectHtml(id) : ""}
+          </div>
         </div>`;
     }).join("");
   }
@@ -1222,6 +1326,10 @@ function escapeHtml(str) {
 
 function render() {
   if (!currentUser) return;
+  // Defensive: Choose is James-only. Even if activeView were somehow left
+  // on "choose" for someone else (stale state, a switched user, etc.),
+  // never render its content for them -- fall back to Home instead.
+  if (activeView === "choose" && currentUser !== MENU_OWNER) activeView = "tonight";
   const main = document.getElementById("main");
   let html = "";
   if (firebaseStatus === "unavailable") {
@@ -1241,6 +1349,29 @@ function attachHandlers() {
   if (tonightPicker) {
     tonightPicker.onchange = () => setTonightRecipe(TODAY_KEY, tonightPicker.value || null);
   }
+  document.querySelectorAll("[data-week-picker]").forEach(sel => {
+    sel.onchange = () => setTonightRecipe(sel.dataset.weekPicker, sel.value || null);
+  });
+  document.querySelectorAll("[data-day-assign]").forEach(sel => {
+    sel.onchange = () => {
+      const recipeId = sel.dataset.dayAssign;
+      const dateKey = sel.value;
+      sel.value = ""; // one-shot action, not a persistent field
+      if (!dateKey) return;
+      const existingId = menu[dateKey]?.recipeId || null;
+      if (existingId && existingId !== recipeId) {
+        const existingEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === existingId);
+        const existingRecipe = existingEntry ? recipeDetails[existingEntry.file] : null;
+        const newEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === recipeId);
+        const newRecipe = newEntry ? recipeDetails[newEntry.file] : null;
+        const ok = confirm(
+          `Replace ${friendlyDateLabel(dateKey)}'s dinner (currently ${existingRecipe ? existingRecipe.name : "something"}) with ${newRecipe ? newRecipe.name : "this"}?`
+        );
+        if (!ok) return;
+      }
+      setTonightRecipe(dateKey, recipeId);
+    };
+  });
   document.querySelectorAll("[data-vote]").forEach(btn => {
     btn.onclick = () => toggleVote(btn.dataset.vote);
   });
@@ -1375,6 +1506,17 @@ function showApp() {
   document.getElementById("namePicker").style.display = "none";
   document.getElementById("app").style.display = "flex";
   document.getElementById("whoLabel").textContent = currentUser;
+  // Choose (search/browse/day-assignment) is James-only -- the shared Up
+  // Next list everyone else still gets lives on Home instead (see
+  // upNextSectionHtml, called from renderTonightView).
+  const chooseBtn = document.querySelector('nav.tabs button[data-view="choose"]');
+  if (chooseBtn) chooseBtn.style.display = currentUser === MENU_OWNER ? "" : "none";
+  if (activeView === "choose" && currentUser !== MENU_OWNER) {
+    activeView = "tonight";
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    const tonightBtn = document.querySelector('nav.tabs button[data-view="tonight"]');
+    if (tonightBtn) tonightBtn.classList.add("active");
+  }
   render();
 }
 

@@ -47,6 +47,15 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    match /recipeOverrides/{recipeId} {
+      // Per-recipe overrides — currently just "removed", used to dismiss a
+      // weekly candidate from the New tab (and bring it back later). Open
+      // to the whole family, same reasoning as queue above: deciding you're
+      // not interested in a candidate is a shared call, not just James's.
+      allow read: if true;
+      allow write: if request.resource.data.keys().hasOnly(['removed', 'removedBy', 'removedAt']);
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;

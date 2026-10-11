@@ -229,6 +229,10 @@
     font-size:15px;font-weight:600;letter-spacing:-0.24px;color:var(--accent-blue);white-space:nowrap;
   } /* radius-full, min tap target */
   .queue-btn.queued{background:var(--accent-blue);color:#ffffff}
+.candidate-actions{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.candidate-remove-btn{min-width:44px;height:32px;padding:0 12px;border-radius:9999px;background:none;font-size:13px;font-weight:600;letter-spacing:-0.08px;color:var(--label-tertiary);white-space:nowrap}
+.removed-toggle{font-size:14px;font-weight:600;color:var(--accent-blue);padding:12px 0;cursor:pointer}
+.removed-card{opacity:0.6}
   .filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
   .filter-select{
     -webkit-appearance:none;appearance:none;
@@ -312,6 +316,7 @@ async function initFirebase() {
     listenToVotes();
     listenToMenu();
     listenToQueue();
+    listenToOverrides();
     render();
   } catch (e) {
     console.error("Firebase failed to load — app will run in read-only/offline mode.", e);
@@ -328,11 +333,13 @@ let ratings = {};            // recipeId -> { personName: {stars, comment} }
 let votes = {};              // weekKey -> { recipeId: [personNames] }
 let menu = {};                // dateKey (YYYY-MM-DD, Eastern) -> { recipeId, setBy, setAt }
 let queue = {};               // recipeId -> { addedBy, addedAt } — shared "up next" shortlist, anyone can add/remove
+let overrides = {};           // recipeId -> { removed, removedBy, removedAt } — candidate dismissals, anyone can toggle
 let activeView = "tonight";
 let searchQuery = "";
 let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork", "sausage", "vegetarian"
 let activeTempFilter = null;       // "hot" | "cold"
 let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
+let showRemovedCandidates = false; // New tab: whether the "Removed" section is expanded
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -397,6 +404,11 @@ function listenToRatings() {
     snap.forEach(docSnap => {
       ratings[docSnap.id] = docSnap.data().people || {};
     });
+    // Exposed read-only for the weekly scheduled task, which checks this
+    // from a browser to auto-promote rated candidates — not used by the
+    // app's own UI, and independent of currentUser so it updates even
+    // before anyone picks a name.
+    window.__ratings = ratings;
     render();
   }, (err) => console.error("ratings listener error", err));
 }
@@ -431,6 +443,23 @@ function listenToQueue() {
     queue = docSnap.exists() ? (docSnap.data() || {}) : {};
     render();
   }, (err) => console.error("queue listener error", err));
+}
+
+function listenToOverrides() {
+  if (!db) return;
+  // Per-recipe overrides (currently just "removed") keyed like ratings, so
+  // dismissing a candidate from the New tab is instant and shared by the
+  // whole family without needing a new recipes.json push.
+  fb.onSnapshot(fb.collection(db, "recipeOverrides"), (snap) => {
+    overrides = {};
+    snap.forEach(docSnap => {
+      overrides[docSnap.id] = docSnap.data();
+    });
+    // Exposed read-only for the weekly scheduled task — see note in
+    // listenToRatings above.
+    window.__overrides = overrides;
+    render();
+  }, (err) => console.error("overrides listener error", err));
 }
 
 async function setRating(recipeId, stars, comment) {
@@ -488,6 +517,17 @@ async function toggleQueue(recipeId) {
       [recipeId]: { addedBy: currentUser, addedAt: new Date().toISOString() }
     }, { merge: true });
   }
+}
+
+async function setRemoved(recipeId, removed) {
+  if (!currentUser) return;
+  if (!db) { alert("Not connected — this can't be saved right now. Check your internet connection."); return; }
+  const ref = fb.doc(db, "recipeOverrides", recipeId);
+  await fb.setDoc(ref, {
+    removed,
+    removedBy: currentUser,
+    removedAt: new Date().toISOString()
+  }, { merge: true });
 }
 
 // ---------- Rendering ----------
@@ -853,43 +893,70 @@ function renderRecipesView() {
 const CATEGORY_LABELS = { chicken: "Chicken", beef: "Beef", pork: "Pork", seafood: "Seafood", vegetarian: "Vegetarian" };
 
 function renderNewView() {
-  const candidates = recipesIndex.filter(r => r.status === "candidate");
+  const allCandidates = recipesIndex.filter(r => r.status === "candidate");
+  const candidates = allCandidates.filter(r => !overrides[recipeIdFromFile(r.file)]?.removed);
+  const removedCandidates = allCandidates.filter(r => overrides[recipeIdFromFile(r.file)]?.removed);
 
-  let html = `<div class="banner-info">Fresh recipe candidates James finds each Sunday — tap "Add" to put one on the shared "Up next" list. Once your family cooks and rates one from here or Choose, it graduates into the regular rotation.</div>`;
+  let html = `<div class="banner-info">Fresh recipe candidates James finds each Sunday — tap "Add" to put one on the shared "Up next" list. Once your family cooks and rates one, it moves into the regular rotation automatically. Not interested in one? Tap "Remove" — it won't show up again unless you bring it back.</div>`;
 
   if (!candidates.length) {
     html += `<div class="empty">No new candidates right now. Check back Sunday.</div>`;
-    return html;
+  } else {
+    // Group by category so the weekly batch reads as "3 chicken, 3 beef, ..."
+    // rather than one flat list.
+    const groups = {};
+    candidates.forEach(entry => {
+      const key = entry.category || "other";
+      (groups[key] = groups[key] || []).push(entry);
+    });
+    const orderedKeys = Object.keys(CATEGORY_LABELS).filter(k => groups[k]).concat(Object.keys(groups).filter(k => !CATEGORY_LABELS[k]));
+
+    orderedKeys.forEach(key => {
+      html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key] || "Other")}</div>`;
+      html += groups[key].map(entry => {
+        const id = recipeIdFromFile(entry.file);
+        const recipe = recipeDetails[entry.file];
+        if (!recipe) return "";
+        const mins = iso8601ToMinutes(recipe.totalTime);
+        const inQueue = !!queue[id];
+        return `
+          <div class="card queue-card">
+            <div class="info">
+              <h3>${escapeHtml(recipe.name)}</h3>
+              <p class="desc">${escapeHtml(recipe.description || "")}</p>
+              <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}</div>
+            </div>
+            <div class="candidate-actions">
+              <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
+              <button class="candidate-remove-btn" data-remove="${id}" title="Not interested — hide this candidate">Remove</button>
+            </div>
+          </div>`;
+      }).join("");
+    });
   }
 
-  // Group by category so the weekly batch reads as "3 chicken, 3 beef, ..."
-  // rather than one flat list.
-  const groups = {};
-  candidates.forEach(entry => {
-    const key = entry.category || "other";
-    (groups[key] = groups[key] || []).push(entry);
-  });
-  const orderedKeys = Object.keys(CATEGORY_LABELS).filter(k => groups[k]).concat(Object.keys(groups).filter(k => !CATEGORY_LABELS[k]));
-
-  orderedKeys.forEach(key => {
-    html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key] || "Other")}</div>`;
-    html += groups[key].map(entry => {
-      const id = recipeIdFromFile(entry.file);
-      const recipe = recipeDetails[entry.file];
-      if (!recipe) return "";
-      const mins = iso8601ToMinutes(recipe.totalTime);
-      const inQueue = !!queue[id];
-      return `
-        <div class="card queue-card">
-          <div class="info">
-            <h3>${escapeHtml(recipe.name)}</h3>
-            <p class="desc">${escapeHtml(recipe.description || "")}</p>
-            <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}</div>
-          </div>
-          <button class="queue-btn ${inQueue ? 'queued' : ''}" data-queue="${id}">${inQueue ? 'Added' : 'Add'}</button>
-        </div>`;
-    }).join("");
-  });
+  // "Removed" candidates stay recoverable, collapsed by default so a long
+  // dismissal history doesn't clutter the tab — tap to expand and restore.
+  if (removedCandidates.length) {
+    html += `<div class="removed-toggle" data-toggle-removed>${showRemovedCandidates ? "Hide" : "Show"} removed (${removedCandidates.length}) ${showRemovedCandidates ? "▲" : "▼"}</div>`;
+    if (showRemovedCandidates) {
+      html += removedCandidates.map(entry => {
+        const id = recipeIdFromFile(entry.file);
+        const recipe = recipeDetails[entry.file];
+        if (!recipe) return "";
+        const mins = iso8601ToMinutes(recipe.totalTime);
+        return `
+          <div class="card queue-card removed-card">
+            <div class="info">
+              <h3>${escapeHtml(recipe.name)}</h3>
+              <p class="desc">${escapeHtml(recipe.description || "")}</p>
+              <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}</div>
+            </div>
+            <button class="queue-btn" data-restore="${id}">Restore</button>
+          </div>`;
+      }).join("");
+    }
+  }
 
   return html;
 }
@@ -927,6 +994,19 @@ function attachHandlers() {
   document.querySelectorAll("[data-queue]").forEach(btn => {
     btn.onclick = () => toggleQueue(btn.dataset.queue);
   });
+  document.querySelectorAll("[data-remove]").forEach(btn => {
+    btn.onclick = () => setRemoved(btn.dataset.remove, true);
+  });
+  document.querySelectorAll("[data-restore]").forEach(btn => {
+    btn.onclick = () => setRemoved(btn.dataset.restore, false);
+  });
+  const toggleRemovedEl = document.querySelector("[data-toggle-removed]");
+  if (toggleRemovedEl) {
+    toggleRemovedEl.onclick = () => {
+      showRemovedCandidates = !showRemovedCandidates;
+      render();
+    };
+  }
   const recipeSearch = document.getElementById("recipeSearch");
   if (recipeSearch) {
     // Re-render on input (to filter live), but restore focus + cursor

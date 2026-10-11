@@ -919,6 +919,143 @@
       "tags": [
         "quick"
       ]
+    },
+    {
+      "file": "chicken-souvlaki-skewers.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
+    },
+    {
+      "file": "chicken-marsala.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "honey-garlic-chicken-thighs.html",
+      "status": "candidate",
+      "category": "chicken",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
+    },
+    {
+      "file": "philly-cheesesteak-skillet.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "one-pan"
+      ]
+    },
+    {
+      "file": "shaking-beef-bo-luc-lac.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "salad"
+      ]
+    },
+    {
+      "file": "beef-bulgogi.html",
+      "status": "candidate",
+      "category": "beef",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "thai-pork-larb-wraps.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "pork-and-egg-lo-mein.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "quick",
+        "pasta"
+      ]
+    },
+    {
+      "file": "cuban-mojo-pork-tenderloin.html",
+      "status": "candidate",
+      "category": "pork",
+      "temp": "hot",
+      "tags": [
+        "grill"
+      ]
+    },
+    {
+      "file": "crab-cakes.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "seared-scallops-lemon-butter-sauce.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "fish-tacos-with-cumin-lime-slaw.html",
+      "status": "candidate",
+      "category": "seafood",
+      "temp": "hot",
+      "tags": [
+        "quick"
+      ]
+    },
+    {
+      "file": "baked-falafel-with-cucumber-yogurt-sauce.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": []
+    },
+    {
+      "file": "thai-peanut-noodles-with-vegetables.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "cold",
+      "tags": [
+        "quick",
+        "pasta"
+      ]
+    },
+    {
+      "file": "vegetarian-chili.html",
+      "status": "candidate",
+      "category": "vegetarian",
+      "temp": "hot",
+      "tags": [
+        "soup"
+      ]
     }
   ]
 }

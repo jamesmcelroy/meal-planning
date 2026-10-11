@@ -427,6 +427,7 @@ let searchQuery = "";
 let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork", "sausage", "vegetarian"
 let activeTempFilter = null;       // "hot" | "cold"
 let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
+let activeStatusFilter = null;     // Recipes tab only: "active" | "candidate" | "unproven" -- never affects Choose
 let showRemovedCandidates = false; // New tab: whether the "Removed" section is expanded
 let voteExtraShown = {};       // Vote tab: category -> total recipes currently shown (defaults to 5 when unset); grows by 5 each "Show 5 more" click (session-only, not saved)
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
@@ -891,6 +892,14 @@ const TEMP_FILTERS = [
   { value: "hot", label: "Hot" },
   { value: "cold", label: "Cold" },
 ];
+// Recipes tab only -- lets James see "everything we know about" instead of
+// just the cooked-and-rated "active" set, without losing the ability to
+// narrow back down to just the proven ones.
+const STATUS_FILTERS = [
+  { value: "active", label: "Cooked & rated" },
+  { value: "candidate", label: "New finds" },
+  { value: "unproven", label: "From AnyList" },
+];
 // "Anything else" filter dimension: a small set of prep-style tags that are
 // actually useful for a busy weeknight (how fast/hands-off it is, or what
 // format it is), rather than trying to tag every possible attribute.
@@ -998,16 +1007,36 @@ function renderChooseView() {
 }
 
 function renderRecipesView() {
-  let html = "";
-  // Same reasoning as Vote: keep bulk-imported "unproven" and weekly
-  // "candidate" recipes out of the rating list until someone actually
-  // cooks and rates one from Choose or New.
-  const rateable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
-  const sorted = [...rateable].sort((a,b) => {
+  // Shows every known recipe -- active, candidate, and unproven alike --
+  // not just the cooked-and-rated "active" set. The Status filter below
+  // (Recipes tab only, never shared with Choose) is how James narrows
+  // back down to just the proven ones when he wants that shorter list.
+  let html = `<div class="filter-bar">`;
+  html += filterSelectHtml(STATUS_FILTERS, activeStatusFilter, "status-filter", "Status");
+  html += filterSelectHtml(CATEGORY_FILTERS, activeCategoryFilter, "category-filter", "Category");
+  html += filterSelectHtml(TEMP_FILTERS, activeTempFilter, "temp-filter", "Temperature");
+  html += filterSelectHtml(TAG_FILTERS, activeTagFilter, "tag-filter", "Style");
+  const anyFilterActive = activeStatusFilter || activeCategoryFilter || activeTempFilter || activeTagFilter;
+  if (anyFilterActive) html += `<span class="filter-clear" data-clear-filters>Clear filters</span>`;
+  html += `</div>`;
+
+  const all = recipesIndex.filter(entry => {
+    if (activeStatusFilter && entry.status !== activeStatusFilter) return false;
+    return recipeMatchesFilters(entry);
+  });
+  const sorted = [...all].sort((a, b) => {
     const ra = avgStars(recipeIdFromFile(a.file)) || 0;
     const rb = avgStars(recipeIdFromFile(b.file)) || 0;
-    return rb - ra;
+    if (rb !== ra) return rb - ra;
+    const na = recipeDetails[a.file]?.name || "";
+    const nb = recipeDetails[b.file]?.name || "";
+    return na.localeCompare(nb);
   });
+
+  if (!sorted.length) {
+    html += `<div class="empty">No recipes match these filters.</div>`;
+    return html;
+  }
 
   html += sorted.map(entry => {
     const id = recipeIdFromFile(entry.file);
@@ -1017,14 +1046,13 @@ function renderRecipesView() {
 
     return `
       <div class="card">
-        <h3>${recipe.name}</h3>
-        <p class="desc">${recipe.description || ""}</p>
-        <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}${recipe.recipeYield ? `<span>${recipe.recipeYield}</span>` : ""}</div>
+        <h3>${escapeHtml(recipe.name)}${originChipHtml(entry)}</h3>
+        <p class="desc">${escapeHtml(recipe.description || "")}</p>
+        <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}${recipe.recipeYield ? `<span>${escapeHtml(String(recipe.recipeYield))}</span>` : ""}</div>
         ${ratingWidgetHtml(id, recipe)}
       </div>`;
   }).join("");
 
-  if (!sorted.length) html = `<div class="empty">No recipes yet.</div>`;
   return html;
 }
 
@@ -1170,6 +1198,13 @@ function attachHandlers() {
       }
     };
   }
+  const statusFilterSelect = document.querySelector("[data-status-filter]");
+  if (statusFilterSelect) {
+    statusFilterSelect.onchange = () => {
+      activeStatusFilter = statusFilterSelect.value || null;
+      render();
+    };
+  }
   const categoryFilterSelect = document.querySelector("[data-category-filter]");
   if (categoryFilterSelect) {
     categoryFilterSelect.onchange = () => {
@@ -1194,6 +1229,7 @@ function attachHandlers() {
   const clearFiltersBtn = document.querySelector("[data-clear-filters]");
   if (clearFiltersBtn) {
     clearFiltersBtn.onclick = () => {
+      activeStatusFilter = null;
       activeCategoryFilter = null;
       activeTempFilter = null;
       activeTagFilter = null;

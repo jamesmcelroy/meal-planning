@@ -422,6 +422,7 @@ let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork",
 let activeTempFilter = null;       // "hot" | "cold"
 let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
 let showRemovedCandidates = false; // New tab: whether the "Removed" section is expanded
+let voteExtraShown = {};       // Vote tab: category -> how many extra untested recipes revealed via "Show 5 more" (session-only, not saved)
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -783,41 +784,77 @@ function renderTonightView() {
   return html;
 }
 
+function voteCardHtml(entry, weekVotes, untested) {
+  const id = recipeIdFromFile(entry.file);
+  const recipe = recipeDetails[entry.file];
+  if (!recipe) return "";
+  const count = (weekVotes[id] || []).length;
+  const iVoted = (weekVotes[id] || []).includes(currentUser);
+  const mins = iso8601ToMinutes(recipe.totalTime);
+  const ratingLabel = untested ? "Not yet tried" : (avgStars(id) ? "★ " + avgStars(id).toFixed(1) : "Not yet rated");
+  return `
+    <div class="card vote-card">
+      <div class="info">
+        <h3>${escapeHtml(recipe.name)}</h3>
+        <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${ratingLabel}</span></div>
+      </div>
+      <div class="vote-count">
+        <button class="vote-btn ${iVoted ? "voted" : ""}" data-vote="${id}">${iVoted ? "✓" : "+"}</button>
+        <span class="num">${count}</span>
+      </div>
+    </div>`;
+}
+
 function renderVoteView() {
   const weekVotes = votes[CURRENT_WEEK] || {};
-  // "unproven" recipes (bulk-imported from AnyList, not yet cooked/rated by
-  // this app) and "candidate" recipes (weekly auto-suggested, not yet
-  // reviewed in the New tab) are searchable in Choose but excluded here so
-  // the weekly vote list stays focused on recipes the family actually knows.
-  const votable = recipesIndex.filter(r => r.status !== "unproven" && r.status !== "candidate");
-  const sorted = [...votable].sort((a,b) => {
+  // "active" recipes are ones the family has actually cooked and rated
+  // through this app -- the known-good pool, grouped by category below.
+  // "candidate" recipes (weekly auto-suggested, awaiting review in the New
+  // tab) stay out of voting entirely. "unproven" recipes (the original
+  // AnyList bulk import, never cooked through this app) are held back
+  // by default too, but are the pool "Show 5 more" draws from per category
+  // when the proven options run thin -- the active list alone is often
+  // just 1-2 recipes per category.
+  const active = recipesIndex.filter(r => r.status === "active");
+  const byCategorySort = (a, b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
     const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
     return vb - va;
+  };
+
+  let html = `<div class="banner-info">Vote for the dinners you want this week. Tap the circle to add or remove your vote — everyone's votes update live. Don't love the options in a category? Tap "Show 5 more" to pull in recipes nobody's tried yet.</div>`;
+
+  const orderedKeys = Object.keys(CATEGORY_LABELS);
+  let anyShown = false;
+
+  orderedKeys.forEach(key => {
+    const proven = active.filter(r => r.category === key).sort(byCategorySort);
+    const untestedPool = recipesIndex
+      .filter(r => r.category === key && r.status === "unproven")
+      .sort((a, b) => {
+        const ra = recipeDetails[a.file], rb = recipeDetails[b.file];
+        return (ra?.name || "").localeCompare(rb?.name || "");
+      });
+    const shownCount = voteExtraShown[key] || 0;
+    const untestedShown = untestedPool.slice(0, shownCount);
+    const moreRemaining = untestedPool.length - untestedShown.length;
+
+    if (!proven.length && !untestedShown.length && !moreRemaining) return; // nothing at all for this category
+    anyShown = true;
+
+    html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key])}</div>`;
+    if (!proven.length && !untestedShown.length) {
+      html += `<div class="empty">Nothing proven here yet.</div>`;
+    } else {
+      html += proven.map(entry => voteCardHtml(entry, weekVotes, false)).join("");
+      html += untestedShown.map(entry => voteCardHtml(entry, weekVotes, true)).join("");
+    }
+    if (moreRemaining > 0) {
+      html += `<div class="removed-toggle" data-vote-more="${key}">Show ${Math.min(5, moreRemaining)} more ▼</div>`;
+    }
   });
 
-  let html = `<div class="banner-info">Vote for the dinners you want this week. Tap the circle to add or remove your vote — everyone's votes update live.</div>`;
-  html += sorted.map(entry => {
-    const id = recipeIdFromFile(entry.file);
-    const recipe = recipeDetails[entry.file];
-    if (!recipe) return "";
-    const count = (weekVotes[id] || []).length;
-    const iVoted = (weekVotes[id] || []).includes(currentUser);
-    const mins = iso8601ToMinutes(recipe.totalTime);
-    return `
-      <div class="card vote-card">
-        <div class="info">
-          <h3>${recipe.name}</h3>
-          <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
-        </div>
-        <div class="vote-count">
-          <button class="vote-btn ${iVoted ? 'voted' : ''}" data-vote="${id}">${iVoted ? '✓' : '+'}</button>
-          <span class="num">${count}</span>
-        </div>
-      </div>`;
-  }).join("");
-
-  if (!sorted.length) html += `<div class="empty">No recipes yet.</div>`;
+  if (!anyShown) html += `<div class="empty">No recipes yet.</div>`;
   return html;
 }
 
@@ -1072,6 +1109,13 @@ function attachHandlers() {
   }
   document.querySelectorAll("[data-vote]").forEach(btn => {
     btn.onclick = () => toggleVote(btn.dataset.vote);
+  });
+  document.querySelectorAll("[data-vote-more]").forEach(btn => {
+    btn.onclick = () => {
+      const cat = btn.dataset.voteMore;
+      voteExtraShown[cat] = (voteExtraShown[cat] || 0) + 5;
+      render();
+    };
   });
   document.querySelectorAll("[data-queue]").forEach(btn => {
     btn.onclick = () => toggleQueue(btn.dataset.queue);

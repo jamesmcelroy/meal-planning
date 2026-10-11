@@ -136,7 +136,8 @@
       "file": "best-formula-three-cheese-fondue.html",
       "status": "unproven",
       "category": "vegetarian",
-      "temp": "hot"
+      "temp": "hot",
+      "partial": true
     },
     {
       "file": "fettuccine-alfredo.html",
@@ -211,7 +212,8 @@
       "temp": "cold",
       "tags": [
         "salad"
-      ]
+      ],
+      "partial": true
     },
     {
       "file": "one-skillet-greek-chicken-and-orzo-with-tomatoes-feta-and-tzatziki.html",
@@ -230,7 +232,8 @@
       "tags": [
         "pasta",
         "slow-cooker"
-      ]
+      ],
+      "partial": true
     },
     {
       "file": "creamy-roasted-butternut-squash-pasta-with-sausage-and-spinach.html",
@@ -521,7 +524,8 @@
       "temp": "hot",
       "tags": [
         "grill"
-      ]
+      ],
+      "partial": true
     },
     {
       "file": "garlic-lime-marinated-pork-chops.html",
@@ -574,7 +578,8 @@
       "file": "grands-monkey-bread.html",
       "status": "unproven",
       "category": "vegetarian",
-      "temp": "hot"
+      "temp": "hot",
+      "partial": true
     },
     {
       "file": "loaded-baked-potatoes.html",
@@ -598,7 +603,8 @@
       "temp": "hot",
       "tags": [
         "quick"
-      ]
+      ],
+      "partial": true
     },
     {
       "file": "boboli-mexican-pizza.html",
@@ -614,13 +620,15 @@
       "file": "roasted-sweet-potatoes.html",
       "status": "unproven",
       "category": "vegetarian",
-      "temp": "hot"
+      "temp": "hot",
+      "partial": true
     },
     {
       "file": "mashed-cauliflower.html",
       "status": "unproven",
       "category": "vegetarian",
-      "temp": "hot"
+      "temp": "hot",
+      "partial": true
     },
     {
       "file": "slow-cooker-ratatouille.html",

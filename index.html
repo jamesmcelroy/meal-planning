@@ -830,7 +830,10 @@ function renderVoteView() {
   // proven options run thin -- the active list alone is often just 1-2
   // recipes per category -- and "Show 5 more" reveals further untested
   // ones beyond that default 5.
-  const active = recipesIndex.filter(r => r.status === "active");
+  // Partial recipes (a sauce, marinade, dip, or other component meant to
+  // accompany a dish rather than stand as the dinner itself) never belong
+  // in the recommendation pool -- see entry.partial below.
+  const active = recipesIndex.filter(r => r.status === "active" && !r.partial);
   const byCategorySort = (a, b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
     const vb = (weekVotes[recipeIdFromFile(b.file)] || []).length;
@@ -845,7 +848,7 @@ function renderVoteView() {
   orderedKeys.forEach(key => {
     const proven = active.filter(r => r.category === key).sort(byCategorySort);
     const untestedPool = recipesIndex
-      .filter(r => r.category === key && r.status === "unproven")
+      .filter(r => r.category === key && r.status === "unproven" && !r.partial)
       .sort((a, b) => {
         const ra = recipeDetails[a.file], rb = recipeDetails[b.file];
         return (ra?.name || "").localeCompare(rb?.name || "");
@@ -961,6 +964,10 @@ function renderChooseView() {
   const matches = recipesIndex.filter(entry => {
     const recipe = recipeDetails[entry.file];
     if (!recipe) return false;
+    // Partial recipes (a sauce, marinade, dip, etc. meant to accompany a
+    // dish, not stand as the dinner itself) are kept out of plain browsing
+    // -- they only surface when someone searches for them by name directly.
+    if (!q && entry.partial) return false;
     if (!recipeMatchesFilters(entry)) return false;
     if (!q) return true;
     return recipeSearchText(entry, recipe).includes(q);

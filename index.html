@@ -428,6 +428,17 @@ let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork",
 let activeTempFilter = null;       // "hot" | "cold"
 let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
 let activeStatusFilter = null;     // Recipes tab only: "active" | "candidate" | "unproven" -- never affects Choose
+let activeSortBy = "rating";       // Recipes tab only: "rating" | "name" | "quickest"
+// Recipes tab resort debouncing -- ratings sync live from every family
+// member's device, and resorting the instant one comes in (while someone's
+// mid-scroll) feels jarring. A direct filter/sort/status change still
+// applies immediately; only a reorder caused by live data settles after a
+// quiet period. See renderRecipesView.
+let recipesDisplayOrder = [];      // file names, in the order currently on screen
+let recipesSortSignature = null;   // filters+sort combo that produced recipesDisplayOrder
+let recipesResortTimer = null;     // pending debounce timer, or null
+let recipesPendingTarget = null;   // the "file|file|..." order the pending timer will apply
+const RECIPES_RESORT_DEBOUNCE_MS = 1500;
 let showRemovedCandidates = false; // New tab: whether the "Removed" section is expanded
 let voteExtraShown = {};       // Vote tab: category -> total recipes currently shown (defaults to 5 when unset); grows by 5 each "Show 5 more" click (session-only, not saved)
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
@@ -924,6 +935,44 @@ function recipeMatchesFilters(entry) {
   return true;
 }
 
+// Recipes tab only -- always has a real value, so (unlike the other filter
+// dropdowns) it never shows a blank/placeholder option.
+const SORT_OPTIONS = [
+  { value: "rating", label: "Highest rated" },
+  { value: "name", label: "Name (A-Z)" },
+  { value: "quickest", label: "Quickest to cook" },
+];
+
+function sortSelectHtml() {
+  const opts = SORT_OPTIONS.map(f =>
+    `<option value="${f.value}" ${activeSortBy === f.value ? "selected" : ""}>${escapeHtml(f.label)}</option>`
+  ).join("");
+  return `<select class="filter-select" data-sort-filter>${opts}</select>`;
+}
+
+function sortRecipeEntries(entries) {
+  const byName = (a, b) => (recipeDetails[a.file]?.name || "").localeCompare(recipeDetails[b.file]?.name || "");
+  if (activeSortBy === "name") {
+    return [...entries].sort(byName);
+  }
+  if (activeSortBy === "quickest") {
+    return [...entries].sort((a, b) => {
+      const ma = iso8601ToMinutes(recipeDetails[a.file]?.totalTime) ?? Infinity;
+      const mb = iso8601ToMinutes(recipeDetails[b.file]?.totalTime) ?? Infinity;
+      if (ma !== mb) return ma - mb;
+      return byName(a, b);
+    });
+  }
+  // Default: "rating" -- highest average stars first, unrated recipes all
+  // tie at the bottom, name A-Z as the tiebreaker throughout.
+  return [...entries].sort((a, b) => {
+    const ra = avgStars(recipeIdFromFile(a.file)) || 0;
+    const rb = avgStars(recipeIdFromFile(b.file)) || 0;
+    if (rb !== ra) return rb - ra;
+    return byName(a, b);
+  });
+}
+
 function filterSelectHtml(options, activeValue, dataAttr, placeholder) {
   const isActive = !!activeValue;
   const opts = [`<option value="">${escapeHtml(placeholder)}</option>`]
@@ -1012,6 +1061,7 @@ function renderRecipesView() {
   // (Recipes tab only, never shared with Choose) is how James narrows
   // back down to just the proven ones when he wants that shorter list.
   let html = `<div class="filter-bar">`;
+  html += sortSelectHtml();
   html += filterSelectHtml(STATUS_FILTERS, activeStatusFilter, "status-filter", "Status");
   html += filterSelectHtml(CATEGORY_FILTERS, activeCategoryFilter, "category-filter", "Category");
   html += filterSelectHtml(TEMP_FILTERS, activeTempFilter, "temp-filter", "Temperature");
@@ -1024,21 +1074,56 @@ function renderRecipesView() {
     if (activeStatusFilter && entry.status !== activeStatusFilter) return false;
     return recipeMatchesFilters(entry);
   });
-  const sorted = [...all].sort((a, b) => {
-    const ra = avgStars(recipeIdFromFile(a.file)) || 0;
-    const rb = avgStars(recipeIdFromFile(b.file)) || 0;
-    if (rb !== ra) return rb - ra;
-    const na = recipeDetails[a.file]?.name || "";
-    const nb = recipeDetails[b.file]?.name || "";
-    return na.localeCompare(nb);
-  });
+  const freshSorted = sortRecipeEntries(all);
 
-  if (!sorted.length) {
+  // A change to the filters, status, or sort method (or the first time this
+  // tab is viewed) applies instantly -- that's a deliberate action and
+  // should feel snappy. Anything else (a rating syncing in live from
+  // someone else's phone) only reorders the list after a quiet period, so
+  // cards don't jump around under James's thumb mid-scroll.
+  const filterSignature = JSON.stringify([activeStatusFilter, activeCategoryFilter, activeTempFilter, activeTagFilter, activeSortBy]);
+  let displayEntries;
+
+  if (filterSignature !== recipesSortSignature) {
+    recipesSortSignature = filterSignature;
+    recipesDisplayOrder = freshSorted.map(e => e.file);
+    if (recipesResortTimer) { clearTimeout(recipesResortTimer); recipesResortTimer = null; recipesPendingTarget = null; }
+    displayEntries = freshSorted;
+  } else {
+    const byFile = new Map(all.map(e => [e.file, e]));
+    const ordered = recipesDisplayOrder.map(f => byFile.get(f)).filter(Boolean);
+    const seen = new Set(ordered.map(e => e.file));
+    const newcomers = freshSorted.filter(e => !seen.has(e.file));
+    displayEntries = [...ordered, ...newcomers];
+
+    const targetSignature = freshSorted.map(e => e.file).join("|");
+    const currentSignature = displayEntries.map(e => e.file).join("|");
+
+    if (targetSignature !== currentSignature) {
+      if (targetSignature !== recipesPendingTarget) {
+        if (recipesResortTimer) clearTimeout(recipesResortTimer);
+        recipesPendingTarget = targetSignature;
+        recipesResortTimer = setTimeout(() => {
+          recipesResortTimer = null;
+          recipesPendingTarget = null;
+          recipesDisplayOrder = targetSignature ? targetSignature.split("|") : [];
+          render();
+        }, RECIPES_RESORT_DEBOUNCE_MS);
+      }
+      // else: already waiting out this exact target order -- let it ride.
+    } else if (recipesResortTimer) {
+      clearTimeout(recipesResortTimer);
+      recipesResortTimer = null;
+      recipesPendingTarget = null;
+    }
+  }
+
+  if (!displayEntries.length) {
     html += `<div class="empty">No recipes match these filters.</div>`;
     return html;
   }
 
-  html += sorted.map(entry => {
+  html += displayEntries.map(entry => {
     const id = recipeIdFromFile(entry.file);
     const recipe = recipeDetails[entry.file];
     if (!recipe) return "";
@@ -1196,6 +1281,13 @@ function attachHandlers() {
         restored.focus();
         restored.setSelectionRange(pos, pos);
       }
+    };
+  }
+  const sortFilterSelect = document.querySelector("[data-sort-filter]");
+  if (sortFilterSelect) {
+    sortFilterSelect.onchange = () => {
+      activeSortBy = sortFilterSelect.value || "rating";
+      render();
     };
   }
   const statusFilterSelect = document.querySelector("[data-status-filter]");

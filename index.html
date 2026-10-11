@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="locked">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
@@ -118,6 +118,29 @@
     text-align:left;
   } /* headline, radius-lg */
   .name-btn:active{background:var(--fill-quaternary)}
+
+  /* ---------- Password gate ---------- */
+  /* Light deterrent only, not real security -- see comment on #passwordGate
+     below and the script that drives it, near the top of <body>. */
+  html.locked #namePicker,html.locked #app{display:none}
+  #passwordGate{
+    position:fixed;inset:0;background:var(--surface-grouped);z-index:200;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  }
+  #passwordGate.hidden{display:none}
+  #passwordGate h2{font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.36px;margin-bottom:6px;text-align:center;color:var(--label)}
+  #passwordGate p{font-size:15px;line-height:20px;letter-spacing:-0.24px;color:var(--label-secondary);margin-bottom:24px;text-align:center}
+  #gateForm{display:flex;flex-direction:column;gap:12px;width:100%;max-width:300px}
+  #gatePassword{
+    padding:14px 16px;min-height:44px;border-radius:14px;background:var(--surface-tertiary);
+    font-size:17px;color:var(--label);border:1px solid var(--separator);
+  }
+  #gateSubmit{
+    padding:14px 16px;min-height:44px;border-radius:14px;background:var(--accent-blue);
+    font-size:17px;font-weight:600;color:#ffffff;text-align:center;
+  }
+  #gateSubmit:active{opacity:0.8}
+  #gateError{color:var(--accent-red);font-size:14px;min-height:18px;text-align:center}
 
   /* ---------- Cards ---------- */
   .card{
@@ -256,6 +279,65 @@
 </style>
 </head>
 <body>
+
+<div id="passwordGate">
+  <h2>Family Dinners</h2>
+  <p>Enter the family password to continue.</p>
+  <form id="gateForm" autocomplete="on">
+    <input type="password" id="gatePassword" name="password" autocomplete="current-password" placeholder="Password" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button type="submit" id="gateSubmit">Unlock</button>
+    <div id="gateError"></div>
+  </form>
+</div>
+
+<script>
+// Simple front-door deterrent, not real security: this only hides the page
+// behind a shared password so a stranger who stumbles on the URL can't see
+// it at a glance. It does NOT protect the underlying Firestore data, which
+// stays reachable by anyone who knows the project ID regardless of this
+// gate -- GitHub Pages has no server to enforce that, only the browser.
+// The password itself isn't stored here, only its SHA-256 hash, so it's not
+// sitting in plain text in the page source.
+(function(){
+  var STORAGE_KEY = "mealAppUnlocked";
+  var PASSWORD_HASH = "7057709fcc2a486d031dd7767dea2da7bf609b749f4e1e015993eead3f0597c6";
+  var gate = document.getElementById("passwordGate");
+  var form = document.getElementById("gateForm");
+  var input = document.getElementById("gatePassword");
+  var error = document.getElementById("gateError");
+
+  function reveal(){
+    document.documentElement.classList.remove("locked");
+    gate.classList.add("hidden");
+  }
+  function unlock(){
+    try { localStorage.setItem(STORAGE_KEY, "yes"); } catch(e) {}
+    reveal();
+  }
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === "yes") reveal();
+  } catch(e) {}
+
+  async function sha256Hex(text){
+    var data = new TextEncoder().encode(text);
+    var hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hashBuffer)).map(function(b){ return b.toString(16).padStart(2, "0"); }).join("");
+  }
+
+  form.addEventListener("submit", async function(e){
+    e.preventDefault();
+    error.textContent = "";
+    var hash = await sha256Hex(input.value);
+    if (hash === PASSWORD_HASH) {
+      unlock();
+    } else {
+      error.textContent = "That's not it \u2014 try again.";
+      input.value = "";
+      input.focus();
+    }
+  });
+})();
+</script>
 
 <div id="namePicker">
   <h2>Who's rating tonight?</h2>

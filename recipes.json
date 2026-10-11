@@ -45,8 +45,7 @@
       "category": "beef",
       "temp": "hot",
       "tags": [
-        "grill",
-        "steak"
+        "grill"
       ]
     },
     {
@@ -90,7 +89,7 @@
     {
       "file": "sour-cream-and-chive-potato-pizza.html",
       "status": "unproven",
-      "category": "vegetarian",
+      "category": "pork",
       "temp": "hot",
       "tags": [
         "pizza"
@@ -120,7 +119,7 @@
       "category": "seafood",
       "temp": "hot",
       "tags": [
-        "foil-pack",
+        "one-pan",
         "grill"
       ]
     },
@@ -220,7 +219,7 @@
       "category": "chicken",
       "temp": "hot",
       "tags": [
-        "one-pot"
+        "one-pan"
       ]
     },
     {
@@ -559,7 +558,7 @@
       "category": "beef",
       "temp": "hot",
       "tags": [
-        "one-pot"
+        "one-pan"
       ]
     },
     {
@@ -580,7 +579,7 @@
     {
       "file": "loaded-baked-potatoes.html",
       "status": "unproven",
-      "category": "vegetarian",
+      "category": "pork",
       "temp": "hot"
     },
     {

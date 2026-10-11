@@ -142,6 +142,12 @@
   #gateSubmit:active{opacity:0.8}
   #gateError{color:var(--accent-red);font-size:14px;min-height:18px;text-align:center}
 
+  /* ---------- Recipe origin chip (New = weekly search find, Existing =
+     already in the family's AnyList collection, cooked or not) ---------- */
+  .origin-chip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;padding:3px 8px;border-radius:9999px;margin-left:8px;vertical-align:middle}
+  .chip-new{background:var(--accent-green);color:#ffffff}
+  .chip-existing{background:var(--fill-quaternary);color:var(--label-secondary)}
+
   /* ---------- Cards ---------- */
   .card{
     background:var(--surface-tertiary);border-radius:14px;padding:16px;margin-bottom:12px;
@@ -422,7 +428,7 @@ let activeCategoryFilter = null;   // e.g. "chicken", "beef", "seafood", "pork",
 let activeTempFilter = null;       // "hot" | "cold"
 let activeTagFilter = null;        // e.g. "quick", "slow-cooker", "one-pan", "salad", "soup", "pasta", "grill", "casserole"
 let showRemovedCandidates = false; // New tab: whether the "Removed" section is expanded
-let voteExtraShown = {};       // Vote tab: category -> how many extra untested recipes revealed via "Show 5 more" (session-only, not saved)
+let voteExtraShown = {};       // Vote tab: category -> total recipes currently shown (defaults to 5 when unset); grows by 5 each "Show 5 more" click (session-only, not saved)
 const expandedScaleLegends = new Set(); // recipeIds currently showing the "what do stars mean" legend
 
 const CURRENT_WEEK = getWeekKey();
@@ -784,6 +790,14 @@ function renderTonightView() {
   return html;
 }
 
+function originChipHtml(entry) {
+  // "New" = found via the weekly recipe search, not yet in the family's
+  // AnyList collection. Everything else ("active" or "unproven") came
+  // from AnyList at some point, cooked or not, so it counts as "Existing".
+  const isNew = entry.status === "candidate";
+  return `<span class="origin-chip ${isNew ? "chip-new" : "chip-existing"}">${isNew ? "New" : "Existing"}</span>`;
+}
+
 function voteCardHtml(entry, weekVotes, untested) {
   const id = recipeIdFromFile(entry.file);
   const recipe = recipeDetails[entry.file];
@@ -808,13 +822,14 @@ function voteCardHtml(entry, weekVotes, untested) {
 function renderVoteView() {
   const weekVotes = votes[CURRENT_WEEK] || {};
   // "active" recipes are ones the family has actually cooked and rated
-  // through this app -- the known-good pool, grouped by category below.
-  // "candidate" recipes (weekly auto-suggested, awaiting review in the New
-  // tab) stay out of voting entirely. "unproven" recipes (the original
-  // AnyList bulk import, never cooked through this app) are held back
-  // by default too, but are the pool "Show 5 more" draws from per category
-  // when the proven options run thin -- the active list alone is often
-  // just 1-2 recipes per category.
+  // through this app -- the known-good pool, grouped by category below,
+  // always shown first. "candidate" recipes (weekly auto-suggested,
+  // awaiting review in the New tab) stay out of voting entirely.
+  // "unproven" recipes (the original AnyList bulk import, never cooked
+  // through this app) fill out each category up to 5 total when the
+  // proven options run thin -- the active list alone is often just 1-2
+  // recipes per category -- and "Show 5 more" reveals further untested
+  // ones beyond that default 5.
   const active = recipesIndex.filter(r => r.status === "active");
   const byCategorySort = (a, b) => {
     const va = (weekVotes[recipeIdFromFile(a.file)] || []).length;
@@ -835,20 +850,16 @@ function renderVoteView() {
         const ra = recipeDetails[a.file], rb = recipeDetails[b.file];
         return (ra?.name || "").localeCompare(rb?.name || "");
       });
-    const shownCount = voteExtraShown[key] || 0;
-    const untestedShown = untestedPool.slice(0, shownCount);
-    const moreRemaining = untestedPool.length - untestedShown.length;
-
-    if (!proven.length && !untestedShown.length && !moreRemaining) return; // nothing at all for this category
+    const combined = [...proven, ...untestedPool];
+    if (!combined.length) return; // nothing at all for this category
     anyShown = true;
 
+    const shownCount = voteExtraShown[key] || Math.min(5, combined.length);
+    const visible = combined.slice(0, shownCount);
+    const moreRemaining = combined.length - visible.length;
+
     html += `<div class="section-label">${escapeHtml(CATEGORY_LABELS[key])}</div>`;
-    if (!proven.length && !untestedShown.length) {
-      html += `<div class="empty">Nothing proven here yet.</div>`;
-    } else {
-      html += proven.map(entry => voteCardHtml(entry, weekVotes, false)).join("");
-      html += untestedShown.map(entry => voteCardHtml(entry, weekVotes, true)).join("");
-    }
+    html += visible.map(entry => voteCardHtml(entry, weekVotes, entry.status === "unproven")).join("");
     if (moreRemaining > 0) {
       html += `<div class="removed-toggle" data-vote-more="${key}">Show ${Math.min(5, moreRemaining)} more ▼</div>`;
     }
@@ -889,6 +900,9 @@ const TAG_FILTERS = [
   { value: "soup", label: "Soup" },
   { value: "salad", label: "Salad" },
   { value: "casserole", label: "Casserole" },
+  { value: "stir-fry", label: "Stir-fry" },
+  { value: "tacos", label: "Tacos" },
+  { value: "pizza", label: "Pizza" },
 ];
 
 function recipeMatchesFilters(entry) {
@@ -933,7 +947,7 @@ function renderChooseView() {
       return `
         <div class="card queue-card">
           <div class="info">
-            <h3>${escapeHtml(recipe.name)}</h3>
+            <h3>${escapeHtml(recipe.name)}${originChipHtml(entry)}</h3>
             <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
             <div class="added-by">Added by ${escapeHtml(q.addedBy || "someone")}</div>
           </div>
@@ -964,7 +978,7 @@ function renderChooseView() {
       return `
         <div class="card queue-card">
           <div class="info">
-            <h3>${escapeHtml(recipe.name)}</h3>
+            <h3>${escapeHtml(recipe.name)}${originChipHtml(entry)}</h3>
             <p class="desc">${escapeHtml(recipe.description || "")}</p>
             <div class="meta-row">${mins ? `<span>${mins} min</span>` : ""}<span>${avgStars(id) ? '★ ' + avgStars(id).toFixed(1) : 'Not yet rated'}</span></div>
           </div>
@@ -1113,7 +1127,7 @@ function attachHandlers() {
   document.querySelectorAll("[data-vote-more]").forEach(btn => {
     btn.onclick = () => {
       const cat = btn.dataset.voteMore;
-      voteExtraShown[cat] = (voteExtraShown[cat] || 0) + 5;
+      voteExtraShown[cat] = (voteExtraShown[cat] || 5) + 5;
       render();
     };
   });

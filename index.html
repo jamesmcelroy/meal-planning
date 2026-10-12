@@ -380,7 +380,7 @@
   <main id="main"></main>
 
   <nav class="tabs">
-    <button data-view="tonight" class="active"><span class="ic">🍽️</span>Tonight</button>
+    <button data-view="tonight" class="active"><span class="ic">🍽️</span>Meal Plan</button>
     <button data-view="vote"><span class="ic">🗳️</span>Vote</button>
     <button data-view="choose"><span class="ic">🔍</span>Choose</button>
     <button data-view="recipes"><span class="ic">📖</span>Recipes</button>
@@ -817,8 +817,6 @@ function renderTonightView() {
         ${ratingWidgetHtml(id, todaysRecipe)}
       </div>
     `;
-  } else {
-    html += `<div class="empty">No dinner set for tonight yet. Pick one above once you know what's cooking.</div>`;
   }
 
   // ---- Recent nights, still open for rating ----

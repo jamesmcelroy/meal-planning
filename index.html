@@ -509,15 +509,6 @@ function friendlyDateLabel(key) {
   return formatDateKey(key);
 }
 
-function recipeOptionsHtml(selectedId) {
-  return recipesIndex.map(entry => {
-    const id = recipeIdFromFile(entry.file);
-    const r = recipeDetails[entry.file];
-    if (!r) return "";
-    return `<option value="${id}" ${id === selectedId ? "selected" : ""}>${escapeHtml(r.name)}</option>`;
-  }).join("");
-}
-
 function dayAssignSelectHtml(recipeId) {
   // Lets James schedule a recipe directly onto one of the next 7 days from
   // Choose (or from the shared Up Next list), instead of only queuing it
@@ -536,6 +527,24 @@ function dayAssignSelectHtml(recipeId) {
     return `<option value="${key}">${escapeHtml(friendlyDateLabel(key) + suffix)}</option>`;
   }).join("");
   return `<select class="filter-select" data-day-assign="${recipeId}"><option value="">Assign to a day…</option>${options}</select>`;
+}
+
+function moveMealSelectHtml(fromKey, recipeId) {
+  // Lets James reschedule a night that's already planned to a different day
+  // in the rolling 7-day window, without picking a brand-new recipe --
+  // assigning a new recipe to a day happens from Choose (dayAssignSelectHtml)
+  // instead. Resets to the placeholder after each use, same reasoning.
+  const options = upcomingWeekKeys().filter(key => key !== fromKey).map(key => {
+    const existingId = menu[key]?.recipeId || null;
+    let suffix = "";
+    if (existingId && existingId !== recipeId) {
+      const existingEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === existingId);
+      const existingRecipe = existingEntry ? recipeDetails[existingEntry.file] : null;
+      if (existingRecipe) suffix = ` (replace ${existingRecipe.name})`;
+    }
+    return `<option value="${key}">${escapeHtml(friendlyDateLabel(key) + suffix)}</option>`;
+  }).join("");
+  return `<select data-move-meal="${fromKey}"><option value="">Move to…</option>${options}</select>`;
 }
 
 function recipeIdFromFile(file) {
@@ -779,14 +788,12 @@ function renderTonightView() {
     const label = friendlyDateLabel(key);
     const isToday = key === TODAY_KEY;
 
-    if (currentUser === MENU_OWNER) {
+    if (currentUser === MENU_OWNER && dayRecipe) {
       return `
         <div class="week-item">
           <span class="wdate${isToday ? " today" : ""}">${escapeHtml(label)}</span>
-          <select data-week-picker="${key}">
-            <option value="">— not set —</option>
-            ${recipeOptionsHtml(dayRecipeId)}
-          </select>
+          <span class="wname">${escapeHtml(dayRecipe.name)}</span>
+          ${moveMealSelectHtml(key, dayRecipeId)}
         </div>`;
     }
     return `
@@ -796,32 +803,6 @@ function renderTonightView() {
       </div>`;
   }).join("");
   html += `</div>`;
-
-  // ---- Up next: the shared shortlist, visible/editable by everyone here
-  // even though browsing for new recipes to add is now James-only (Choose) ----
-  html += upNextSectionHtml();
-
-  // ---- Set tonight's dinner (only MENU_OWNER can change it; everyone else sees a read-only line) ----
-  if (currentUser === MENU_OWNER) {
-    html += `
-      <div class="set-menu">
-        <div class="label">What are we having tonight?</div>
-        <select id="tonightPicker">
-          <option value="">— not set yet —</option>
-          ${recipeOptionsHtml(todaysRecipeId)}
-        </select>
-      </div>
-    `;
-  } else {
-    html += `
-      <div class="set-menu">
-        <div class="label">What are we having tonight?</div>
-        <div style="font-size:17px;line-height:22px;letter-spacing:-0.43px;color:var(--label)">
-          ${todaysRecipe ? escapeHtml(todaysRecipe.name) : "— not set yet —"}
-        </div>
-      </div>
-    `;
-  }
 
   // ---- Tonight's meal, ready to rate ----
   if (todaysRecipe) {
@@ -1345,12 +1326,28 @@ function render() {
 }
 
 function attachHandlers() {
-  const tonightPicker = document.getElementById("tonightPicker");
-  if (tonightPicker) {
-    tonightPicker.onchange = () => setTonightRecipe(TODAY_KEY, tonightPicker.value || null);
-  }
-  document.querySelectorAll("[data-week-picker]").forEach(sel => {
-    sel.onchange = () => setTonightRecipe(sel.dataset.weekPicker, sel.value || null);
+  document.querySelectorAll("[data-move-meal]").forEach(sel => {
+    sel.onchange = () => {
+      const fromKey = sel.dataset.moveMeal;
+      const toKey = sel.value;
+      sel.value = ""; // one-shot action, not a persistent field
+      if (!toKey) return;
+      const recipeId = menu[fromKey]?.recipeId || null;
+      if (!recipeId) return;
+      const existingId = menu[toKey]?.recipeId || null;
+      if (existingId && existingId !== recipeId) {
+        const existingEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === existingId);
+        const existingRecipe = existingEntry ? recipeDetails[existingEntry.file] : null;
+        const movingEntry = recipesIndex.find(r => recipeIdFromFile(r.file) === recipeId);
+        const movingRecipe = movingEntry ? recipeDetails[movingEntry.file] : null;
+        const ok = confirm(
+          `Replace ${friendlyDateLabel(toKey)}'s dinner (currently ${existingRecipe ? existingRecipe.name : "something"}) with ${movingRecipe ? movingRecipe.name : "this"}?`
+        );
+        if (!ok) return;
+      }
+      setTonightRecipe(toKey, recipeId);
+      setTonightRecipe(fromKey, null);
+    };
   });
   document.querySelectorAll("[data-day-assign]").forEach(sel => {
     sel.onchange = () => {
